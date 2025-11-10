@@ -69,8 +69,22 @@ Deno.serve(async (req) => {
 
     console.log('Lead created successfully:', data.id);
 
-    // TODO: In production, trigger welcome email via Brevo
-    // For MVP, this would be handled by a separate scheduled workflow
+    // Trigger welcome email if RESEND_API_KEY is configured
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (resendApiKey) {
+      try {
+        console.log('Triggering welcome email...');
+        await supabase.functions.invoke('send-welcome-email', {
+          body: { lead_id: data.id }
+        });
+        console.log('Welcome email triggered');
+      } catch (emailError) {
+        console.error('Failed to trigger welcome email:', emailError);
+        // Don't fail the entire request if email fails
+      }
+    } else {
+      console.log('RESEND_API_KEY not configured, skipping welcome email');
+    }
 
     return new Response(
       JSON.stringify({ 

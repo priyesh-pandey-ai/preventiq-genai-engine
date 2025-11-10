@@ -269,7 +269,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_variant_alpha: {
+        Args: { p_persona_id: string; p_variant_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
