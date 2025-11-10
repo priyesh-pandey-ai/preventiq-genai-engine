@@ -14,6 +14,113 @@ export type Database = {
   }
   public: {
     Tables: {
+      assignments: {
+        Row: {
+          corr_id: string | null
+          id: number
+          lead_id: number | null
+          persona_id: string | null
+          send_at: string | null
+          sent_at: string | null
+          status: string | null
+          variant_body_id: string | null
+          variant_subject_id: string | null
+        }
+        Insert: {
+          corr_id?: string | null
+          id?: number
+          lead_id?: number | null
+          persona_id?: string | null
+          send_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          variant_body_id?: string | null
+          variant_subject_id?: string | null
+        }
+        Update: {
+          corr_id?: string | null
+          id?: number
+          lead_id?: number | null
+          persona_id?: string | null
+          send_at?: string | null
+          sent_at?: string | null
+          status?: string | null
+          variant_body_id?: string | null
+          variant_subject_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignments_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignments_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      error_log: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          id: number
+          payload: Json | null
+          workflow_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: number
+          payload?: Json | null
+          workflow_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          id?: number
+          payload?: Json | null
+          workflow_name?: string | null
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          assignment_id: number | null
+          id: number
+          meta: Json | null
+          ts: string | null
+          type: string
+        }
+        Insert: {
+          assignment_id?: number | null
+          id?: number
+          meta?: Json | null
+          ts?: string | null
+          type: string
+        }
+        Update: {
+          assignment_id?: number | null
+          id?: number
+          meta?: Json | null
+          ts?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           city: string
@@ -52,6 +159,110 @@ export type Database = {
           utm?: Json | null
         }
         Relationships: []
+      }
+      personas: {
+        Row: {
+          channels: string[] | null
+          description: string
+          id: string
+          is_archetype: boolean | null
+          label: string
+          lang: string | null
+          tone_defaults: string[] | null
+        }
+        Insert: {
+          channels?: string[] | null
+          description: string
+          id: string
+          is_archetype?: boolean | null
+          label: string
+          lang?: string | null
+          tone_defaults?: string[] | null
+        }
+        Update: {
+          channels?: string[] | null
+          description?: string
+          id?: string
+          is_archetype?: boolean | null
+          label?: string
+          lang?: string | null
+          tone_defaults?: string[] | null
+        }
+        Relationships: []
+      }
+      sync_state: {
+        Row: {
+          last_ts: string | null
+          source: string
+        }
+        Insert: {
+          last_ts?: string | null
+          source: string
+        }
+        Update: {
+          last_ts?: string | null
+          source?: string
+        }
+        Relationships: []
+      }
+      variant_stats: {
+        Row: {
+          alpha: number | null
+          beta: number | null
+          persona_id: string
+          variant_id: string
+        }
+        Insert: {
+          alpha?: number | null
+          beta?: number | null
+          persona_id: string
+          variant_id: string
+        }
+        Update: {
+          alpha?: number | null
+          beta?: number | null
+          persona_id?: string
+          variant_id?: string
+        }
+        Relationships: []
+      }
+      variants: {
+        Row: {
+          channel: string | null
+          content: string
+          created_at: string | null
+          id: string
+          lang: string | null
+          persona_id: string | null
+          tone: string | null
+        }
+        Insert: {
+          channel?: string | null
+          content: string
+          created_at?: string | null
+          id: string
+          lang?: string | null
+          persona_id?: string | null
+          tone?: string | null
+        }
+        Update: {
+          channel?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          lang?: string | null
+          persona_id?: string | null
+          tone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variants_persona_id_fkey"
+            columns: ["persona_id"]
+            isOneToOne: false
+            referencedRelation: "personas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
