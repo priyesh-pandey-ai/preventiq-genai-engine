@@ -1,21 +1,33 @@
-import { Hero } from "@/components/Hero";
+import Navigation from "@/components/Navigation";
+import HeroSection from "@/components/HeroSection";
+import ProblemSolution from "@/components/ProblemSolution";
+import FeaturesSection from "@/components/FeaturesSection";
+import HowItWorks from "@/components/HowItWorks";
 import { InstantValueWidget } from "@/components/InstantValueWidget";
-import { Features } from "@/components/Features";
-import { LeadForm } from "@/components/LeadForm";
+import DemoSection from "@/components/DemoSection";
+import Testimonials from "@/components/Testimonials";
+import SignupSection from "@/components/SignupSection";
+import SocialProof from "@/components/SocialProof";
+import PrivacySection from "@/components/PrivacySection";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   return (
     <div className="min-h-screen">
-      <Hero />
-      <InstantValueWidget />
-      <Features />
-      <LeadForm />
-      
-      <footer className="py-8 px-4 bg-card border-t border-border">
-        <div className="container max-w-7xl mx-auto text-center text-sm text-muted-foreground">
-          <p>© 2025 PreventIQ. All rights reserved. | HIPAA Compliant Healthcare Marketing Platform</p>
-        </div>
-      </footer>
+      <Navigation />
+      <main>
+        <HeroSection />
+        <ProblemSolution />
+        <InstantValueWidget />
+        <FeaturesSection />
+        <HowItWorks />
+        <DemoSection />
+        <Testimonials />
+        <SignupSection />
+        <SocialProof />
+        <PrivacySection />
+      </main>
+      <Footer />
     </div>
   );
 };
