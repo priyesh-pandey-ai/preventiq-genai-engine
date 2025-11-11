@@ -69,6 +69,18 @@ You need 3 credentials in n8n:
 
 #### 2.3 Supabase Postgres (for Flow C - assignments table)
 
+**Option A: Using Connection String (Recommended):**
+
+1. In n8n, go to **Credentials** → **Add Credential**
+2. Search for "Postgres"
+3. Configure:
+   - **Credential Name:** `Supabase Postgres`
+   - **Connection Type:** `Connection String`
+   - **Connection String:** `postgresql://postgres.zdgvndxdhucbakguvkgw:gaim123@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres`
+4. Click **Create**
+
+**Option B: Using Individual Fields (Alternative):**
+
 1. In n8n, go to **Credentials** → **Add Credential**
 2. Search for "Postgres"
 3. Configure:
@@ -78,8 +90,14 @@ You need 3 credentials in n8n:
    - **User:** `postgres.zdgvndxdhucbakguvkgw`
    - **Password:** `gaim123`
    - **Port:** `6543`
-   - **SSL:** `allow` or `prefer`
+   - **SSL:** `require` (try this instead of `allow`)
+   - **Ignore SSL Issues:** `false`
 4. Click **Create**
+
+**If connection still fails, try Transaction Pooler:**
+- **Host:** `db.zdgvndxdhucbakguvkgw.supabase.co`
+- **Port:** `5432`
+- **SSL:** `require`
 
 ---
 
