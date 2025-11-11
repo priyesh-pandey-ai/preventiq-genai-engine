@@ -35,21 +35,33 @@ const Navigation = () => {
           </div>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-6">
             <button
               onClick={() => scrollToSection("how")}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
               How It Works
             </button>
             <button
               onClick={() => scrollToSection("features")}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-colors font-medium"
             >
               Features
             </button>
-            <Button onClick={() => scrollToSection("signup")} size="sm">
-              Start Free Pilot
+            <Button 
+              onClick={() => window.location.href = "/login"}
+              variant="ghost"
+              size="sm"
+              className="font-medium"
+            >
+              Login
+            </Button>
+            <Button 
+              onClick={() => scrollToSection("signup")} 
+              size="sm"
+              className="bg-gradient-button hover:shadow-glow transition-all"
+            >
+              Start Free Trial
             </Button>
           </div>
 
@@ -67,18 +79,28 @@ const Navigation = () => {
           <div className="md:hidden py-4 space-y-4 border-t border-border">
             <button
               onClick={() => scrollToSection("how")}
-              className="block w-full text-left text-muted-foreground hover:text-foreground transition-colors py-2"
+              className="block w-full text-left text-muted-foreground hover:text-foreground transition-colors py-2 font-medium"
             >
               How It Works
             </button>
             <button
               onClick={() => scrollToSection("features")}
-              className="block w-full text-left text-muted-foreground hover:text-foreground transition-colors py-2"
+              className="block w-full text-left text-muted-foreground hover:text-foreground transition-colors py-2 font-medium"
             >
               Features
             </button>
-            <Button onClick={() => scrollToSection("signup")} className="w-full">
-              Start Free Pilot
+            <Button 
+              onClick={() => window.location.href = "/login"} 
+              variant="outline"
+              className="w-full"
+            >
+              Login
+            </Button>
+            <Button 
+              onClick={() => scrollToSection("signup")} 
+              className="w-full bg-gradient-button"
+            >
+              Start Free Trial
             </Button>
           </div>
         )}

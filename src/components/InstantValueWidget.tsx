@@ -48,12 +48,12 @@ export const InstantValueWidget = () => {
   return (
     <section id="instant-value" className="py-20 px-4 bg-background">
       <div className="container max-w-4xl mx-auto">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-healthcare-teal-light/20 mb-6">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">Try It Now - Free</span>
+        <div className="text-center mb-12 animate-fade-in">
+          <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-primary text-primary-foreground mb-6 shadow-soft">
+            <Sparkles className="w-4 h-4" />
+            <span className="text-sm font-semibold">Try It Now - Free</span>
           </div>
-          <h2 className="text-4xl md:text-5xl font-bold text-foreground mb-4">
+          <h2 className="text-4xl md:text-5xl font-heading font-bold text-foreground mb-4">
             See the Power of AI Marketing
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -61,17 +61,17 @@ export const InstantValueWidget = () => {
           </p>
         </div>
 
-        <Card className="p-8 shadow-large bg-gradient-card border-border">
+        <Card className="p-8 md:p-10 shadow-large bg-card border-2 border-border/50 hover:border-primary/20 transition-all rounded-2xl">
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
+              <label className="block text-sm font-semibold text-foreground mb-3">
                 Select Campaign Type
               </label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="w-full bg-background border-2">
+                <SelectTrigger className="w-full bg-background border-2 h-12 rounded-lg hover:border-primary/40 transition-colors">
                   <SelectValue placeholder="Choose a preventive health campaign..." />
                 </SelectTrigger>
-                <SelectContent className="bg-background border-2 z-50">
+                <SelectContent className="bg-background border-2 z-50 rounded-lg">
                   <SelectItem value="Diabetes Screening">Diabetes Screening</SelectItem>
                   <SelectItem value="Heart Health Checkup">Heart Health Checkup</SelectItem>
                   <SelectItem value="General Wellness Package">General Wellness Package</SelectItem>
@@ -85,12 +85,12 @@ export const InstantValueWidget = () => {
             <Button 
               onClick={generateSubjects}
               disabled={loading || !category}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground py-6 text-lg shadow-medium hover:shadow-glow transition-all"
+              className="w-full bg-gradient-button hover:shadow-glow text-primary-foreground py-7 text-lg font-semibold shadow-medium transition-all rounded-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Generating...
+                  Generating with AI...
                 </>
               ) : (
                 <>
@@ -100,23 +100,34 @@ export const InstantValueWidget = () => {
               )}
             </Button>
 
-            {subjects.length > 0 && (
+            {loading && (
+              <div className="space-y-3 animate-fade-in">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-16 bg-muted rounded-lg shimmer"></div>
+                ))}
+              </div>
+            )}
+
+            {subjects.length > 0 && !loading && (
               <div className="mt-8 space-y-4 animate-slide-up">
-                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <h3 className="text-lg font-heading font-bold text-foreground flex items-center gap-2">
                   <Mail className="w-5 h-5 text-primary" />
                   Your AI-Generated Subject Lines:
                 </h3>
                 {subjects.map((subject, index) => (
                   <div 
                     key={index}
-                    className="p-4 bg-background border-2 border-primary/20 rounded-lg hover:border-primary/40 transition-colors"
+                    className="p-5 bg-gradient-card border-2 border-primary/30 rounded-xl hover:border-primary hover:shadow-soft transition-all cursor-default group"
+                    style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    <p className="text-foreground font-medium">{subject}</p>
+                    <p className="text-foreground font-medium leading-relaxed group-hover:text-primary transition-colors">{subject}</p>
                   </div>
                 ))}
-                <p className="text-sm text-muted-foreground text-center mt-4">
-                  These are just examples. Sign up to get personalized campaigns for your clinic!
-                </p>
+                <div className="mt-6 p-4 bg-primary/5 border border-primary/20 rounded-xl">
+                  <p className="text-sm text-foreground text-center font-medium">
+                    ✨ These are just examples. <span className="text-primary font-semibold">Sign up</span> to get personalized campaigns for your clinic!
+                  </p>
+                </div>
               </div>
             )}
           </div>
