@@ -1,31 +1,54 @@
 {
-  "name": "PreventIQ - Flow C: Campaign Send",
+  "name": "Flow C: Daily Campaign Send",
   "nodes": [
     {
       "parameters": {
         "rule": {
           "interval": [
             {
-              "triggerAtHour": 4,
-              "triggerAtMinute": 30
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
             }
           ]
         }
       },
-      "name": "Daily at 10 AM IST (4:30 AM UTC)",
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        240,
+        250,
         300
-      ],
-      "id": "cron-trigger"
+      ]
     },
     {
       "parameters": {
-        "url": "https://zdgvndxdhucbakguvkgw.supabase.co/functions/v1/campaign-send",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "host-assignment",
+              "name": "host",
+              "value": "https://zdgvndxdhucbakguvkgw.supabase.co",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "supabase-config",
+      "name": "Supabase Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Supabase Config').item.json.host }}/functions/v1/campaign-send",
         "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
+        "nodeCredentialType": "supabaseApi",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -35,20 +58,23 @@
             }
           ]
         },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
         "options": {}
       },
-      "name": "Call campaign-send Edge Function",
+      "id": "call-campaign-send",
+      "name": "Call campaign-send",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        460,
+        650,
         300
       ],
-      "id": "call-campaign-send",
       "credentials": {
-        "httpHeaderAuth": {
-          "id": "supabase-service-role",
-          "name": "Supabase Service Role"
+        "supabaseApi": {
+          "id": "supabase-api-credential",
+          "name": "Supabase API"
         }
       }
     },
@@ -58,16 +84,16 @@
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "strict"
+            "typeValidation": "loose"
           },
           "conditions": [
             {
-              "id": "campaigns-exist",
-              "leftValue": "={{ $json.campaigns.length }}",
-              "rightValue": "0",
+              "id": "has-campaigns",
+              "leftValue": "={{ $json.success === true && Array.isArray($json.campaigns) && $json.campaigns.length > 0 }}",
+              "rightValue": true,
               "operator": {
-                "type": "number",
-                "operation": "gt"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
@@ -75,50 +101,83 @@
         },
         "options": {}
       },
-      "name": "Check if campaigns exist",
+      "id": "check-campaigns",
+      "name": "Has Campaigns?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        680,
+        850,
         300
-      ],
-      "id": "check-campaigns"
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "no-campaigns-message",
+              "name": "message",
+              "value": "No campaigns to send",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "no-campaigns",
+      "name": "No Campaigns",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1050,
+        450
+      ]
     },
     {
       "parameters": {
         "fieldToSplitOut": "campaigns",
         "options": {}
       },
-      "name": "Split campaigns array",
+      "id": "split-campaigns",
+      "name": "Split Campaigns",
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        900,
-        200
-      ],
-      "id": "split-campaigns"
+        1050,
+        150
+      ]
     },
     {
       "parameters": {
+        "method": "POST",
         "url": "https://api.resend.com/emails",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"PreventIQ <onboarding@resend.dev>\",\n  \"to\": \"{{ $json.lead_email }}\",\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": \"<!DOCTYPE html>\\n<html>\\n<head>\\n  <meta charset=\\\"utf-8\\\">\\n  <style>\\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\\n    .header { background: #0066cc; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }\\n    .content { padding: 30px; background: #f9f9f9; }\\n    .cta { display: inline-block; background: #0066cc; color: white; padding: 14px 28px; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: bold; }\\n    .footer { padding: 20px; background: #f0f0f0; text-align: center; font-size: 12px; color: #666; border-radius: 0 0 8px 8px; }\\n  </style>\\n</head>\\n<body>\\n  <div class=\\\"container\\\">\\n    <div class=\\\"header\\\">\\n      <h1>🏥 PreventIQ Health Insights</h1>\\n    </div>\\n    <div class=\\\"content\\\">\\n      <h2>Hi {{ $json.lead_name }},</h2>\\n      <p>Your personalized health assessment is ready!</p>\\n      <p>Based on your profile, we've identified key health insights that could help you prevent chronic conditions and improve your well-being.</p>\\n      <p><strong>Take the first step towards better health today.</strong></p>\\n      <a href=\\\"https://zdgvndxdhucbakguvkgw.supabase.co/functions/v1/track-click/{{ $json.assignment_id }}\\\" class=\\\"cta\\\">\\n        Get Your Free Assessment →\\n      </a>\\n      <p style=\\\"margin-top: 30px; color: #555;\\\">This personalized assessment takes just 2 minutes and provides actionable insights tailored to your health profile.</p>\\n    </div>\\n    <div class=\\\"footer\\\">\\n      <p>You're receiving this because you signed up for PreventIQ health insights.</p>\\n      <p>© 2025 PreventIQ. All rights reserved.</p>\\n    </div>\\n  </div>\\n</body>\\n</html>\",\n  \"tags\": [\n    {\n      \"name\": \"campaign\",\n      \"value\": \"preventiq_daily\"\n    },\n    {\n      \"name\": \"persona\",\n      \"value\": \"{{ $json.persona_id }}\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"from\": \"PreventIQ <noreply@preventiq.com>\",\n  \"to\": [\"{{ $json.lead_email }}\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": \"<p>Hi {{ $json.lead_name }},</p><p>{{ $json.subject }}</p><p><a href='https://preventiq.com/track?lead={{ $json.lead_id }}&variant={{ $json.variant_id }}'>Learn More</a></p><p>Best,<br>PreventIQ Team</p>\",\n  \"tags\": [\n    {\n      \"name\": \"campaign\",\n      \"value\": \"daily\"\n    },\n    {\n      \"name\": \"persona\",\n      \"value\": \"{{ $json.persona_id }}\"\n    },\n    {\n      \"name\": \"variant\",\n      \"value\": \"{{ $json.variant_id }}\"\n    },\n    {\n      \"name\": \"lead_id\",\n      \"value\": \"{{ $json.lead_id }}\"\n    }\n  ]\n}",
         "options": {}
       },
+      "id": "send-email-resend",
       "name": "Send Email via Resend",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1120,
-        200
+        1250,
+        150
       ],
-      "id": "send-email-resend",
       "credentials": {
         "httpHeaderAuth": {
-          "id": "resend-api",
+          "id": "resend-api-header",
           "name": "Resend API"
         }
       }
@@ -126,17 +185,17 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, corr_id, status, send_at)\nVALUES (\n  '{{ $('Split campaigns array').item.json.lead_id }}',\n  '{{ $('Split campaigns array').item.json.persona_id }}',\n  '{{ $('Split campaigns array').item.json.variant_id }}',\n  '{{ $json.id }}',\n  'sent',\n  NOW()\n)\nRETURNING id;",
+        "query": "=INSERT INTO assignments (lead_id, variant_id, persona_id, channel)\nVALUES ('{{ $('Split Campaigns').item.json.lead_id }}', '{{ $('Split Campaigns').item.json.variant_id }}', '{{ $('Split Campaigns').item.json.persona_id }}', 'email')",
         "options": {}
       },
-      "name": "Store Assignment in Supabase",
+      "id": "record-assignment",
+      "name": "Record Assignment",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1340,
-        200
+        1450,
+        150
       ],
-      "id": "store-assignment",
       "credentials": {
         "postgres": {
           "id": "supabase-postgres",
@@ -146,110 +205,80 @@
     },
     {
       "parameters": {
-        "mode": "combine",
-        "combinationMode": "mergeByPosition",
-        "options": {}
-      },
-      "name": "Merge Campaign + Email Data",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [
-        1560,
-        200
-      ],
-      "id": "merge-data"
-    },
-    {
-      "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO error_log (workflow_name, error_message, payload, ts)\nVALUES (\n  'campaign-send',\n  '{{ $json.error.message }}',\n  '{{ JSON.stringify($json) }}',\n  NOW()\n);",
+        "query": "=INSERT INTO email_log (assignment_id, email_address, subject_line, sent_at, email_id)\nVALUES (\n  (SELECT id FROM assignments WHERE lead_id = '{{ $('Split Campaigns').item.json.lead_id }}' ORDER BY created_at DESC LIMIT 1),\n  '{{ $('Split Campaigns').item.json.lead_email }}',\n  '{{ $('Split Campaigns').item.json.subject }}',\n  NOW(),\n  '{{ $json.id }}'\n)",
         "options": {}
       },
-      "name": "Log Error to Database",
+      "id": "log-email",
+      "name": "Log Email",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
-        1340,
-        400
+        1650,
+        150
       ],
-      "id": "log-error",
       "credentials": {
         "postgres": {
           "id": "supabase-postgres",
           "name": "Supabase Postgres"
         }
-      },
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "content": "## Campaign Send Workflow\n\n**Trigger:** Daily at 10:00 AM IST (4:30 AM UTC)\n\n**What it does:**\n1. Calls `campaign-send` Edge Function\n2. Gets prepared campaigns with Thompson Sampling variant selection\n3. Sends emails via Resend API\n4. Stores assignments with Resend email_id (corr_id)\n5. Logs errors if any\n\n**Output:** Email sent + assignment stored\n\n**Resend webhook:** Will receive events and update stats automatically",
-        "height": 350,
-        "width": 400,
-        "color": 4
-      },
-      "name": "Sticky Note",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        220,
-        460
-      ],
-      "id": "sticky-note"
-    },
-    {
-      "parameters": {
-        "content": "## No Campaigns\n\nIf campaign-send returns empty array:\n- No unassigned leads\n- Or all leads already processed today\n\nWorkflow stops here (expected behavior)",
-        "height": 200,
-        "width": 300,
-        "color": 7
-      },
-      "name": "Sticky Note1",
-      "type": "n8n-nodes-base.stickyNote",
-      "typeVersion": 1,
-      "position": [
-        660,
-        440
-      ],
-      "id": "sticky-note-no-campaigns"
+      }
     }
   ],
+  "pinData": {},
   "connections": {
-    "Daily at 10 AM IST (4:30 AM UTC)": {
+    "Schedule Trigger": {
       "main": [
         [
           {
-            "node": "Call campaign-send Edge Function",
+            "node": "Supabase Config",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Call campaign-send Edge Function": {
+    "Supabase Config": {
       "main": [
         [
           {
-            "node": "Check if campaigns exist",
+            "node": "Call campaign-send",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check if campaigns exist": {
+    "Call campaign-send": {
       "main": [
         [
           {
-            "node": "Split campaigns array",
+            "node": "Has Campaigns?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Campaigns?": {
+      "main": [
+        [
+          {
+            "node": "Split Campaigns",
             "type": "main",
             "index": 0
           }
         ],
-        []
+        [
+          {
+            "node": "No Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
-    "Split campaigns array": {
+    "Split Campaigns": {
       "main": [
         [
           {
@@ -264,23 +293,18 @@
       "main": [
         [
           {
-            "node": "Store Assignment in Supabase",
+            "node": "Record Assignment",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Merge Campaign + Email Data",
-            "type": "main",
-            "index": 1
           }
         ]
       ]
     },
-    "Store Assignment in Supabase": {
+    "Record Assignment": {
       "main": [
         [
           {
-            "node": "Merge Campaign + Email Data",
+            "node": "Log Email",
             "type": "main",
             "index": 0
           }
@@ -288,13 +312,15 @@
       ]
     }
   },
-  "pinData": {},
+  "active": false,
   "settings": {
     "executionOrder": "v1"
   },
-  "staticData": null,
-  "tags": [],
-  "triggerCount": 1,
-  "updatedAt": "2025-11-11T00:00:00.000Z",
-  "versionId": "1"
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "preventiq-genai-engine"
+  },
+  "id": "flow-c-campaign-send",
+  "tags": []
 }

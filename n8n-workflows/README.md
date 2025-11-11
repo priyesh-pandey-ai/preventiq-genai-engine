@@ -1,355 +1,222 @@
-# n8n Workflows Setup Guide
+# n8n Workflows for PreventIQ Campaign Automation
 
-This folder contains 2 n8n workflows for PreventIQ automation.
+This folder contains n8n workflow JSON files for automating PreventIQ's email campaigns using Thompson Sampling bandit algorithm and weekly performance reports.
 
----
+## Files
 
-## 📦 Workflows Included
+- **flow-c-campaign-send.json** - Daily campaign automation (runs at 9 AM daily)
+- **flow-f-report-generation.json** - Weekly report generation (runs at 10 AM every Monday)
 
-### 1. Flow C: Campaign Send (`flow-c-campaign-send.json`)
-**Purpose:** Daily automated email campaigns with Thompson Sampling variant selection
+## Prerequisites
 
-**Trigger:** Cron - Daily at 10:00 AM IST (4:30 AM UTC)
+1. **n8n Cloud Account** (or self-hosted n8n)
+   - Sign up at https://n8n.io/cloud
 
-**What it does:**
-1. Calls `campaign-send` Edge Function to get prepared campaigns
-2. Thompson Sampling selects best email variant for each lead
-3. Sends emails via Resend API
-4. Stores assignment records with Resend email_id
-5. Logs errors to database if any fail
+2. **Supabase Project**
+   - Project ID: zdgvndxdhucbakguvkgw
+   - Project URL: https://zdgvndxdhucbakguvkgw.supabase.co
 
----
+3. **Supabase Service Role Key**
+   - Get from: Supabase Dashboard > Project Settings > API > service_role key
 
-### 2. Flow F: Report Generation (`flow-f-report-generation.json`)
-**Purpose:** Generate weekly campaign performance reports with AI insights
+## Setup Instructions
 
-**Trigger:** Manual (run on-demand)
+### Step 1: Create Supabase API Credential in n8n
 
-**What it does:**
-1. Calls `generate-report` Edge Function
-2. Gets KPIs, PMF score, and Gemini AI insights
-3. Formats beautiful HTML report
-4. (Future) Converts to PDF and emails to admin
+1. Log in to your n8n account
+2. Go to **Credentials** (from the left sidebar)
+3. Click **Add Credential**
+4. Search for and select **Supabase API**
+5. Configure the credential:
+   - **Credential Name**: `Supabase API` (or any name you prefer)
+   - **Host**: `https://zdgvndxdhucbakguvkgw.supabase.co`
+   - **Service Role Secret**: `<your-service-role-key>`
+     ```
+     eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZ3ZuZHhkaHVjYmFrZ3V2a2d3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjgwNTAxNSwiZXhwIjoyMDc4MzgxMDE1fQ.XPmdKJ8g9GWx8UOKLTQ8FpZAIhDKDj-L8Kg-_XeO37U
+     ```
+6. Click **Save**
 
----
-
-## 🚀 Setup Instructions
-
-### Step 1: Sign up for n8n Cloud
-
-1. Go to https://n8n.io/cloud/
-2. Create free account
-3. Create a new workspace
-
----
-
-### Step 2: Add Credentials
-
-You need 2 credentials in n8n (updated - using native Supabase integration):
-
-#### 2.1 Supabase API (Replaces both Service Role + Postgres!)
+### Step 2: Create Resend API Credential in n8n
 
 1. In n8n, go to **Credentials** → **Add Credential**
-2. Search for "Supabase"
-3. Configure:
-   - **Credential Name:** `Supabase API`
-   - **Host:** `https://zdgvndxdhucbakguvkgw.supabase.co`
-   - **Service Role Secret:** `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZ3ZuZHhkaHVjYmFrZ3V2a2d3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjgwNTAxNSwiZXhwIjoyMDc4MzgxMDE1fQ.XPmdKJ8g9GWx8UOKLTQ8FpZAIhDKDj-L8Kg-_XeO37U`
-4. Click **Create**
+2. Search for and select **Header Auth**
+3. You'll see two fields - fill them in:
+   - **Name** (the HTTP header name): `Authorization`
+   - **Value** (the header value): `Bearer re_GpPQkJU5_MVpcSg4d1VZYTQ5sVUU4LxZ2`
+4. Click **Save**
+5. Give it a friendly name like `Resend API` when prompted
 
-**Note:** This single credential handles both Edge Function calls AND database operations!
-
-#### 2.2 Resend API
+### Step 3: Create Supabase Postgres Credential in n8n
 
 1. In n8n, go to **Credentials** → **Add Credential**
-2. Search for "HTTP Header Auth"
-3. Configure:
-   - **Credential Name:** `Resend API`
-   - **Name:** `Authorization`
-   - **Value:** `Bearer re_GpPQkJU5_MVpcSg4d1VZYTQ5sVUU4LxZ2`
-4. Click **Create**
-
----
-
-### Step 3: Import Workflows
-
-#### Import Flow C (Campaign Send):
-
-1. In n8n, click **Workflows** → **Add Workflow** → **Import from File**
-2. Upload `flow-c-campaign-send.json`
-3. The workflow will open in the editor
-4. **Update nodes to use Supabase API credential:**
-   - Click on "Call campaign-send Edge Function" node
-   - Change node type to **"Supabase"** (instead of HTTP Request)
-   - Select operation: **"Invoke Function"**
-   - Function name: `campaign-send`
-   - Credential: `Supabase API`
-   
-   **OR keep HTTP Request node and:**
-   - Use HTTP Header Auth credential with:
-   - Header: `Authorization`
-   - Value: `Bearer <service_role_key>`
-   
-5. Click on "Send Email via Resend" node
-   - Select credential: `Resend API`
-   
-6. **For database operations**, replace Postgres nodes with **Supabase nodes**:
-   - Change "Store Assignment in Supabase" to Supabase node
-   - Operation: **"Execute SQL"**
-   - SQL query: (same INSERT statement)
-   - Credential: `Supabase API`
-
-7. Click **Save** (top right)
-8. Click **Activate** toggle (top right) to enable the cron trigger
-
-**Note:** The imported JSON uses HTTP Request nodes. You can either:
-- Keep them and use HTTP Header Auth credentials
-- OR replace with native Supabase nodes (recommended for cleaner workflow)
-
-#### Import Flow F (Report Generation):
-
-1. In n8n, click **Workflows** → **Add Workflow** → **Import from File**
-2. Upload `flow-f-report-generation.json`
-3. The workflow will open in the editor
-4. **Update to use Supabase API credential:**
-   - Click on "Call generate-report Edge Function" node
-   - Option 1: Use Supabase node → Invoke Function → `generate-report`
-   - Option 2: Keep HTTP Request node with HTTP Header Auth
-   - Select credential: `Supabase API` (if using Supabase node)
+2. Search for and select **Postgres**
+3. Configure the credential:
+   - **Credential Name**: `Supabase Postgres`
+   - **Host**: `aws-0-us-east-1.pooler.supabase.com`
+   - **Port**: `6543`
+   - **Database**: `postgres`
+   - **User**: `postgres.zdgvndxdhucbakguvkgw`
+   - **Password**: `gaim123`
+   - **SSL**: **Enable** (check the box)
+4. Click **Test Connection** (should succeed)
 5. Click **Save**
-6. To run manually: Click **Test workflow** or **Execute Workflow**
 
----
+### Step 4: Import Workflows
 
-## 🧪 Testing the Workflows
+#### Import Flow C (Campaign Send)
 
-### Test Flow C (Campaign Send):
+1. In n8n, click **Workflows** in the left sidebar
+2. Click **Add Workflow** button
+3. Click the **⋮** (three dots) menu in the top right
+4. Select **Import from File**
+5. Upload `flow-c-campaign-send.json`
+6. The workflow will open in the editor
 
-**Before running, ensure you have test leads:**
+#### Link Credentials to Flow C Nodes
 
-```sql
--- Add test leads to Supabase (via SQL Editor)
-INSERT INTO leads (name, email, city, age, org_type) VALUES
-('John Doe', 'p24priyesh@gmail.com', 'Mumbai', 35, 'corporate'),
-('Jane Smith', 'p24priyesh@gmail.com', 'Delhi', 42, 'msme'),
-('Bob Johnson', 'p24priyesh@gmail.com', 'Bangalore', 28, 'startup');
-```
+1. Click on the **"Call campaign-send"** node
+   - In the **Credential to connect with** dropdown, select `Supabase API`
+2. Click on the **"Send Email via Resend"** node
+   - In the **Credential to connect with** dropdown, select `Resend API` (the Header Auth credential)
+3. Click on the **"Record Assignment"** node
+   - In the **Credential to connect with** dropdown, select `Supabase Postgres`
+4. Click on the **"Log Email"** node
+   - In the **Credential to connect with** dropdown, select `Supabase Postgres`
+5. Click **Save** in the top right
 
-**Manual test (before waiting for cron):**
+#### Import Flow F (Report Generation)
 
-1. Open Flow C workflow in n8n
-2. Click **Test workflow** button
-3. Watch the execution in real-time
-4. Check your email inbox (p24priyesh@gmail.com)
-5. Verify Resend Dashboard shows sent emails
-6. Check Supabase `assignments` table for new records
+1. Click **Workflows** > **Add Workflow**
+2. Click **⋮** > **Import from File**
+3. Upload `flow-f-report-generation.json`
+4. Click on the **"Call generate-report"** node
+   - Select the `Supabase API` credential
+5. Click **Save**
 
-**After testing, activate cron:**
-- Toggle **Active** to enable daily 10 AM IST runs
+### Step 5: Activate Workflows
 
----
+1. Open **Flow C: Daily Campaign Send**
+2. Toggle the **Active** switch in the top right to **ON**
+3. Open **Flow F: Weekly Report Generation**
+4. Toggle the **Active** switch to **ON**
 
-### Test Flow F (Report Generation):
+## Workflow Details
 
-1. Open Flow F workflow in n8n
-2. Click **Test workflow**
-3. View the execution output
-4. Copy the `html` field from the output
-5. Save to a `.html` file and open in browser
-6. Beautiful report should display!
+### Flow C: Daily Campaign Send
 
----
+**Schedule**: Every day at 9:00 AM
 
-## 📊 Monitoring
+**What it does**:
+1. Triggers automatically at 9 AM daily
+2. Calls the `campaign-send` Edge Function
+3. Edge Function:
+   - Fetches active leads who haven't been emailed in the last 24 hours
+   - Groups leads by persona
+   - For each persona with ≥50 clicks in variant_stats:
+     - Uses Thompson Sampling to select the best subject line variant
+   - For personas with <50 clicks:
+     - Randomly selects a subject line variant
+   - Calls `generate-subjects` Edge Function to create 3 AI-generated subject lines
+   - Sends emails via Resend API
+   - Records email in email_log table
 
-### n8n Execution History
-- Go to **Executions** in n8n sidebar
-- See all workflow runs (success/failure)
-- Click any execution to see detailed logs
+**Nodes**:
+- **Schedule Trigger**: Cron schedule (0 9 * * *)
+- **Supabase Config**: Sets the Supabase host URL
+- **Call campaign-send**: HTTP Request to Edge Function with Supabase API authentication
 
-### Resend Dashboard
-- Check https://resend.com/emails for sent emails
-- Check https://resend.com/webhooks for webhook deliveries
+### Flow F: Weekly Report Generation
 
-### Supabase Dashboard
-- Check `assignments` table for new campaign assignments
-- Check `events` table for webhook events (sent, delivered, clicked)
-- Check `variant_stats` table to see Thompson Sampling learning
-- Check `error_log` table for any errors
+**Schedule**: Every Monday at 10:00 AM
 
----
+**What it does**:
+1. Triggers automatically at 10 AM every Monday
+2. Calls the `generate-report` Edge Function
+3. Edge Function:
+   - Calculates performance metrics for the past week
+   - Per persona: email count, total clicks, click-through rate (CTR), best performing variant
+   - Overall stats: total emails sent, total clicks, average CTR
+   - Sends report to admin email (p24priyesh@gmail.com) via Resend
 
-## 🔧 Customization
+**Nodes**:
+- **Schedule Trigger**: Cron schedule (0 10 * * 1 - Mondays at 10 AM)
+- **Supabase Config**: Sets the Supabase host URL
+- **Call generate-report**: HTTP Request to Edge Function with Supabase API authentication
 
-### Change Campaign Time (Flow C):
+## Testing
 
-1. Open Flow C in n8n editor
-2. Click on "Daily at 10 AM IST" cron trigger node
-3. Modify trigger time:
-   - IST is UTC+5:30
-   - 10:00 AM IST = 4:30 AM UTC
-   - 12:00 PM IST = 6:30 AM UTC
-   - 6:00 PM IST = 12:30 PM UTC
-4. Save workflow
+### Manual Test (Before Activating)
 
-### Customize Email Template (Flow C):
+1. Open the workflow in n8n
+2. Click **Execute Workflow** button (top right, or **Test Workflow** in some versions)
+3. Check the execution log:
+   - Green checkmarks = success
+   - Red X = error (check error message)
+4. Verify in Supabase:
+   - **Flow C**: Check `email_log` table for new records
+   - **Flow F**: Check your email for the report
 
-1. Open Flow C → "Send Email via Resend" node
-2. Edit the `html` field in JSON body
-3. Modify subject line, content, styling
-4. Save workflow
+### Check Execution History
 
-### Change Report Date Range (Flow F):
+1. Go to **Executions** in the left sidebar
+2. View past workflow runs
+3. Click on any execution to see detailed logs
 
-1. Open Flow F → "Call generate-report Edge Function" node
-2. Modify `start_date` and `end_date` in JSON body:
-   ```json
-   {
-     "start_date": "{{ $now.minus({ days: 30 }).toISO() }}",  // Last 30 days
-     "end_date": "{{ $now.toISO() }}"
-   }
-   ```
-3. Save workflow
+## Troubleshooting
 
----
+### Error: "Unauthorized" or "Authentication failed"
 
-## 🎯 Expected Results
+- **Solution**: Verify your Supabase API credential has the correct Host and Service Role Secret
 
-### After Flow C runs successfully:
+### Error: "Function not found"
 
-1. **Emails sent** via Resend to unassigned leads
-2. **Assignments created** in Supabase with:
-   - `lead_id`, `persona_id`, `variant_id`
-   - `corr_id` = Resend email_id
-   - `status` = 'sent'
-   - `send_at` = current timestamp
-3. **Resend webhooks** start firing:
-   - `email.sent` → Creates event in database
-   - `email.delivered` → Updates assignment status
-   - `email.clicked` → Increments `variant_stats.alpha` (Thompson Sampling learns!)
+- **Solution**: Ensure Edge Functions are deployed to Supabase:
+  ```powershell
+  npx supabase functions deploy campaign-send
+  npx supabase functions deploy generate-report
+  ```
 
-### After Flow F runs successfully:
+### No emails sent
 
-1. **HTML report generated** with:
-   - Total sends, CTR, PMF score
-   - Per-persona performance table
-   - Gemini AI insights summary
-   - Recommended new subject lines
-2. **Output** available in n8n execution view
+- **Possible causes**:
+  1. No leads in database → Add test leads to `leads` table
+  2. All leads emailed in last 24 hours → Wait 24 hours or update `last_email_sent_at` to NULL
+  3. Resend API key not configured → Check Supabase secrets:
+     ```powershell
+     npx supabase secrets list
+     ```
 
----
+### Workflow not triggering automatically
 
-## 🐛 Troubleshooting
+- **Solution**: Make sure the workflow is **Active** (toggle in top right should be ON/green)
 
-### Flow C Issues:
-
-**"No campaigns" in output:**
-- ✅ Expected if no unassigned leads in database
-- Add test leads via SQL
-
-**Email not sending:**
-- Check Resend API credential is correct
-- Verify `to` email is `p24priyesh@gmail.com` (your verified email)
-- Check Resend dashboard for errors
-
-**Assignment not stored:**
-- Check Supabase Postgres credential
-- Verify database password is correct
-- Check Supabase logs for SQL errors
-
-### Flow F Issues:
-
-**No data in report:**
-- Normal if no campaign has run yet
-- Run Flow C first to generate data
-- Wait for webhook events to populate stats
-
-**Error calling generate-report:**
-- Check Supabase Service Role credential
-- Verify Edge Function is deployed
-- Check Supabase Edge Function logs
-
----
-
-## 📚 Architecture Flow
+## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      FLOW C: Campaign Send                   │
-└─────────────────────────────────────────────────────────────┘
-
-Cron (10 AM IST)
-    │
-    ▼
-Call campaign-send Edge Function
-    │ (Returns: campaigns array with Thompson Sampling variants)
-    ▼
-Loop through campaigns
-    │
-    ▼
-Send Email via Resend API
-    │ (Returns: Resend email_id)
-    ▼
-Store Assignment in Supabase
-    │ (corr_id = Resend email_id)
-    ▼
-Done!
-
-Meanwhile...
-Resend Webhook → sync-events Edge Function → Update variant_stats
-(Thompson Sampling learns from clicks!)
-
-
-┌─────────────────────────────────────────────────────────────┐
-│                  FLOW F: Report Generation                   │
-└─────────────────────────────────────────────────────────────┘
-
-Manual Trigger
-    │
-    ▼
-Call generate-report Edge Function
-    │ (Runs SQL + calls Gemini AI)
-    │
-    ▼
-Format as HTML
-    │ (Beautiful report with charts)
-    ▼
-Output (save/view)
+n8n Cloud
+  ↓ (HTTP Request with Supabase API auth)
+Supabase Edge Function (campaign-send or generate-report)
+  ↓
+Supabase PostgreSQL Database
+  ↓
+Resend API (sends emails)
+  ↓
+Email delivered to leads
+  ↓ (click tracking webhook)
+Supabase Edge Function (sync-events)
+  ↓
+variant_stats table updated (Thompson Sampling data)
 ```
 
----
+## Next Steps
 
-## 🎉 Success Checklist
+1. **Add Test Leads**: Insert 10-20 test leads into the `leads` table covering all 6 personas
+2. **Monitor Executions**: Check n8n Executions tab after 9 AM to verify Flow C runs successfully
+3. **Wait for Data**: After a week of campaign sends, check the Monday 10 AM report from Flow F
+4. **Optimize**: Analyze variant performance in `variant_stats` table to see Thompson Sampling in action
 
-- [ ] Both workflows imported to n8n
-- [ ] All 3 credentials configured and tested
-- [ ] Flow C activated (cron running)
-- [ ] Test leads added to database
-- [ ] Flow C manually tested (emails sent)
-- [ ] Resend webhooks verified (check `events` table)
-- [ ] Thompson Sampling stats updating (`variant_stats` table)
-- [ ] Flow F manually tested (report generated)
-- [ ] HTML report looks good in browser
+## Support
 
----
-
-## 🚀 Next Steps
-
-Once both workflows are running:
-
-1. **Deploy Frontend** to Vercel (lead capture form)
-2. **Add Real Leads** via landing page
-3. **Monitor Performance** daily
-4. **Review Reports** weekly
-5. **Optimize Variants** based on Thompson Sampling insights
-6. **Scale Up** as needed!
-
----
-
-**Need Help?**
-- Check Supabase Edge Function logs
-- Check n8n execution history
-- Check Resend webhook deliveries
-- Review DEPLOYMENT.md and ARCHITECTURE.md
-
-Happy automating! 🎯
+- **n8n Documentation**: https://docs.n8n.io
+- **Supabase Documentation**: https://supabase.com/docs
+- **Project Repository**: https://github.com/priyesh-pandey-ai/preventiq-genai-engine
