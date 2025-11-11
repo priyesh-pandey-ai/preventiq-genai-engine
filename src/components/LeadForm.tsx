@@ -7,6 +7,7 @@ import { Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { analytics } from "@/lib/analytics";
 
 export const LeadForm = () => {
   const navigate = useNavigate();
@@ -36,10 +37,12 @@ export const LeadForm = () => {
 
       if (error) throw error;
 
+      analytics.trackFormSubmit('lead_intake', true);
       toast.success("Welcome to PreventIQ! Check your email for next steps.");
       navigate("/thanks");
     } catch (error) {
       console.error('Error submitting form:', error);
+      analytics.trackFormSubmit('lead_intake', false);
       toast.error("Failed to submit. Please try again.");
     } finally {
       setLoading(false);

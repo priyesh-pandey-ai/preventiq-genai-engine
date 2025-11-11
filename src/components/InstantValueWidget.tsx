@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Loader2, Sparkles, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { analytics } from "@/lib/analytics";
 
 export const InstantValueWidget = () => {
   const [category, setCategory] = useState<string>("");
@@ -29,6 +30,7 @@ export const InstantValueWidget = () => {
 
       if (data?.subjects && Array.isArray(data.subjects)) {
         setSubjects(data.subjects);
+        analytics.trackWidgetUse(category, true);
         toast.success("Generated 3 subject lines!");
         
         // Cache in localStorage
@@ -39,6 +41,7 @@ export const InstantValueWidget = () => {
       }
     } catch (error) {
       console.error('Error generating subjects:', error);
+      analytics.trackWidgetUse(category, false);
       toast.error("Failed to generate subjects. Please try again.");
     } finally {
       setLoading(false);

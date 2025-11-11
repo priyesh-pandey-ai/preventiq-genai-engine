@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Loader2, Mail, Lock, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { analytics } from "@/lib/analytics";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -62,6 +63,7 @@ const Login = () => {
 
         if (error) throw error;
 
+        analytics.trackLogin('signup', true);
         toast.success("Account created! Please check your email to confirm.");
         setIsSignUp(false);
       } else {
@@ -72,10 +74,12 @@ const Login = () => {
 
         if (error) throw error;
 
+        analytics.trackLogin('signin', true);
         toast.success("Welcome back!");
       }
     } catch (error: any) {
       console.error("Auth error:", error);
+      analytics.trackLogin(isSignUp ? 'signup' : 'signin', false);
       toast.error(error.message || "Authentication failed. Please try again.");
     } finally {
       setLoading(false);

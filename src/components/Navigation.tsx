@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { analytics } from "@/lib/analytics";
 
 const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -15,11 +16,17 @@ const Navigation = () => {
   }, []);
 
   const scrollToSection = (id: string) => {
+    analytics.trackNavigation(id);
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: "smooth" });
       setIsMobileMenuOpen(false);
     }
+  };
+
+  const handleLoginClick = () => {
+    analytics.trackNavigation('login');
+    window.location.href = "/login";
   };
 
   return (
@@ -49,7 +56,7 @@ const Navigation = () => {
               Features
             </button>
             <Button 
-              onClick={() => window.location.href = "/login"}
+              onClick={handleLoginClick}
               variant="ghost"
               size="sm"
               className="font-medium"
@@ -90,7 +97,7 @@ const Navigation = () => {
               Features
             </button>
             <Button 
-              onClick={() => window.location.href = "/login"} 
+              onClick={handleLoginClick} 
               variant="outline"
               className="w-full"
             >

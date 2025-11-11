@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
+import { analytics } from "@/lib/analytics";
 
 const HeroSection = () => {
   const scrollToSection = (id: string) => {
@@ -10,13 +11,7 @@ const HeroSection = () => {
   };
 
   const handleCTAClick = (label: string) => {
-    // Track CTA clicks with Google Analytics if available
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'click', {
-        event_category: 'cta',
-        event_label: label
-      });
-    }
+    analytics.trackCTA(label, 'hero_section');
   };
 
   return (
