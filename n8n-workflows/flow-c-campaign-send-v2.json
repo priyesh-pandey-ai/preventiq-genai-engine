@@ -20,20 +20,30 @@
     },
     {
       "parameters": {
-        "functionName": "campaign-send",
-        "headers": {},
-        "queryString": "",
+        "method": "POST",
+        "url": "https://zdgvndxdhucbakguvkgw.supabase.co/functions/v1/campaign-send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.serviceRoleKey }}"
+            }
+          ]
+        },
         "options": {}
       },
       "name": "Call campaign-send",
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [460, 300],
       "id": "call-campaign-send",
       "credentials": {
-        "supabaseApi": {
-          "id": "supabase-api",
-          "name": "Supabase API"
+        "httpHeaderAuth": {
+          "id": "supabase-service-role",
+          "name": "Supabase Service Role"
         }
       }
     },
@@ -101,26 +111,52 @@
     },
     {
       "parameters": {
-        "operation": "runQuery",
-        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, corr_id, status, send_at)\nVALUES (\n  '{{ $('Split campaigns array').item.json.lead_id }}',\n  '{{ $('Split campaigns array').item.json.persona_id }}',\n  '{{ $('Split campaigns array').item.json.variant_id }}',\n  '{{ $json.id }}',\n  'sent',\n  NOW()\n)\nRETURNING id;",
+        "method": "POST",
+        "url": "https://zdgvndxdhucbakguvkgw.supabase.co/rest/v1/assignments",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.serviceRoleKey }}"
+            },
+            {
+              "name": "apikey",
+              "value": "={{ $credentials.serviceRoleKey }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"lead_id\": \"{{ $('Split campaigns array').item.json.lead_id }}\",\n  \"persona_id\": \"{{ $('Split campaigns array').item.json.persona_id }}\",\n  \"variant_subject_id\": \"{{ $('Split campaigns array').item.json.variant_id }}\",\n  \"corr_id\": \"{{ $json.id }}\",\n  \"status\": \"sent\"\n}",
         "options": {}
       },
       "name": "Store Assignment",
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [1340, 200],
       "id": "store-assignment",
       "credentials": {
-        "supabaseApi": {
-          "id": "supabase-api",
-          "name": "Supabase API"
+        "httpHeaderAuth": {
+          "id": "supabase-service-role",
+          "name": "Supabase Service Role"
         }
       }
     },
     {
       "parameters": {
-        "content": "## Campaign Send Workflow - Simplified\n\n**Uses native Supabase nodes!**\n\n**Trigger:** Daily at 10:00 AM IST (4:30 AM UTC)\n\n**What it does:**\n1. Calls `campaign-send` Edge Function via Supabase node\n2. Gets campaigns with Thompson Sampling variants\n3. Sends emails via Resend API\n4. Stores assignments via Supabase SQL query\n\n**Credentials needed:**\n- Supabase API (for Edge Functions + DB)\n- Resend API (for email sending)",
-        "height": 320,
+        "content": "## Campaign Send Workflow - v2\n\n**Simplified with HTTP Request nodes**\n\n**Trigger:** Daily at 10:00 AM IST (4:30 AM UTC)\n\n**What it does:**\n1. Calls `campaign-send` Edge Function (HTTP Request)\n2. Gets campaigns with Thompson Sampling variants\n3. Sends emails via Resend API\n4. Stores assignments via Supabase REST API (direct INSERT)\n\n**Credentials needed:**\n- Supabase Service Role (HTTP Header Auth)\n- Resend API (HTTP Header Auth)",
+        "height": 360,
         "width": 400,
         "color": 4
       },

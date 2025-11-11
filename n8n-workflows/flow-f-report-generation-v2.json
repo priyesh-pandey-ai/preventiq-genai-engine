@@ -11,20 +11,30 @@
     },
     {
       "parameters": {
-        "functionName": "generate-report",
-        "headers": {},
-        "queryString": "",
+        "method": "POST",
+        "url": "https://zdgvndxdhucbakguvkgw.supabase.co/functions/v1/generate-report",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $credentials.serviceRoleKey }}"
+            }
+          ]
+        },
         "options": {}
       },
       "name": "Call generate-report",
-      "type": "n8n-nodes-base.supabase",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [460, 300],
       "id": "call-generate-report",
       "credentials": {
-        "supabaseApi": {
-          "id": "supabase-api",
-          "name": "Supabase API"
+        "httpHeaderAuth": {
+          "id": "supabase-service-role",
+          "name": "Supabase Service Role"
         }
       }
     },
@@ -40,8 +50,8 @@
     },
     {
       "parameters": {
-        "content": "## Report Generation Workflow - Simplified\n\n**Uses native Supabase node!**\n\n**Trigger:** Manual (run weekly)\n\n**What it does:**\n1. Calls `generate-report` Edge Function\n2. Gets campaign KPIs + Gemini insights\n3. Formats beautiful HTML report\n\n**Output:**\n- HTML report (save to file)\n- Text summary\n- Key metrics (PMF score, CTR, best persona)\n\n**Credentials needed:**\n- Supabase API (for Edge Function)",
-        "height": 360,
+        "content": "## Report Generation Workflow - v2\n\n**Simplified with HTTP Request node**\n\n**Trigger:** Manual (run weekly)\n\n**What it does:**\n1. Calls `generate-report` Edge Function (HTTP Request)\n2. Gets campaign KPIs + Gemini insights\n3. Formats beautiful HTML report\n\n**Output:**\n- HTML report (save to file)\n- Text summary\n- Key metrics (PMF score, CTR, best persona)\n\n**Credentials needed:**\n- Supabase Service Role (HTTP Header Auth)",
+        "height": 380,
         "width": 400,
         "color": 4
       },

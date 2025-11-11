@@ -1,6 +1,6 @@
 # n8n Workflows Setup Guide (v2 - Simplified)
 
-This folder contains **simplified** n8n workflows for PreventIQ automation using **native Supabase nodes**.
+This folder contains **simplified** n8n workflows for PreventIQ automation using **HTTP Request nodes**.
 
 ---
 
@@ -11,16 +11,16 @@ This folder contains **simplified** n8n workflows for PreventIQ automation using
 - `flow-f-report-generation-v2.json` - Weekly report generation
 
 **Advantages over v1:**
-- ✅ Native Supabase nodes (no manual HTTP requests)
-- ✅ Only 2 credentials needed (Supabase API + Resend API)
-- ✅ Simpler setup, easier to maintain
+- ✅ Uses HTTP Request nodes (works reliably)
+- ✅ Only 2 credentials needed (Supabase Service Role + Resend API)
+- ✅ Simpler setup, no database connection issues
 - ✅ Better error handling
 
 ---
 
 ## 📦 Workflows Included
 
-### 1. Flow C v2: Campaign Send (Simplified)
+### 1. Flow C v2: Campaign Send
 **File:** `flow-c-campaign-send-v2.json` ⭐
 
 **Purpose:** Daily automated email campaigns with Thompson Sampling variant selection
@@ -29,19 +29,19 @@ This folder contains **simplified** n8n workflows for PreventIQ automation using
 
 **What it does:**
 1. ⏰ Cron trigger fires daily
-2. 🔌 Calls `campaign-send` Edge Function via **native Supabase node**
+2. 🔌 Calls `campaign-send` Edge Function via HTTP Request
 3. 📧 Thompson Sampling selects best email variant for each lead
-4. ✉️ Sends personalized emails via Resend API
-5. 💾 Stores assignment records via **native Supabase SQL query**
+4. ✉️ Sends personalized emails via Resend API (HTTP Request)
+5. 💾 Stores assignment records via Supabase REST API (direct INSERT)
 
 **Key improvements:**
-- No manual HTTP requests - uses native Supabase integration
+- Uses HTTP Request for all API calls
+- Direct INSERT to assignments table via Supabase REST API
 - Cleaner error handling
-- Easier to customize
 
 ---
 
-### 2. Flow F v2: Report Generation (Simplified)
+### 2. Flow F v2: Report Generation
 **File:** `flow-f-report-generation-v2.json` ⭐
 
 **Purpose:** Generate weekly campaign performance reports with AI insights
@@ -50,7 +50,7 @@ This folder contains **simplified** n8n workflows for PreventIQ automation using
 
 **What it does:**
 1. 🎯 Manual trigger (click "Test workflow")
-2. 📊 Calls `generate-report` Edge Function via **native Supabase node**
+2. 📊 Calls `generate-report` Edge Function via HTTP Request
 3. 🤖 Gets KPIs, PMF score, and Gemini AI insights
 4. 🎨 Formats beautiful HTML report with:
    - Overall CTR and PMF score
@@ -78,24 +78,24 @@ This folder contains **simplified** n8n workflows for PreventIQ automation using
 
 ### Step 2: Add Credentials (Only 2 Needed!)
 
-#### 2.1 Supabase API
+#### 2.1 Supabase Service Role (HTTP Header Auth)
 
-**Type:** Supabase (native n8n credential)
+**Type:** HTTP Header Auth (Generic Credential)
 
 **Configuration:**
 1. In n8n, click **Credentials** → **Add Credential**
-2. Search for "Supabase"
+2. Search for "HTTP Header Auth"
 3. Enter details:
    ```
-   Name: Supabase API
-   Host: zdgvndxdhucbakguvkgw.supabase.co
-   Service Role Secret: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZ3ZuZHhkaHVjYmFrZ3V2a2d3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjgwNTAxNSwiZXhwIjoyMDc4MzgxMDE1fQ.XPmdKJ8g9GWx8UOKLTQ8FpZAIhDKDj-L8Kg-_XeO37U
+   Name: Supabase Service Role
+   Header Name: Authorization
+   Header Value: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZ3ZuZHhkaHVjYmFrZ3V2a2d3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjgwNTAxNSwiZXhwIjoyMDc4MzgxMDE1fQ.XPmdKJ8g9GWx8UOKLTQ8FpZAIhDKDj-L8Kg-_XeO37U
    ```
 4. Click **Save**
 
 **Used in:**
 - Call campaign-send node (Edge Function invocation)
-- Store Assignment node (SQL query execution)
+- Store Assignment node (Supabase REST API - INSERT)
 - Call generate-report node (Edge Function invocation)
 
 ---
@@ -128,10 +128,10 @@ This folder contains **simplified** n8n workflows for PreventIQ automation using
 2. Select `flow-c-campaign-send-v2.json`
 3. Workflow will open in editor
 4. **Link credentials to nodes:**
-   - Click "Call campaign-send" node → Select "Supabase API" credential
+   - Click "Call campaign-send" node → Select "Supabase Service Role" credential
    - Click "Send Email via Resend" node → Select "Resend API" credential
-   - Click "Store Assignment" node → Select "Supabase API" credential
-5. Click **Save** (give it a name like "PreventIQ - Campaign Send")
+   - Click "Store Assignment" node → Select "Supabase Service Role" credential
+5. Click **Save** (give it a name like "PreventIQ - Campaign Send v2")
 6. **Activate the workflow** (toggle switch in top right)
 
 ✅ **Done!** Workflow will run daily at 10 AM IST.
@@ -144,8 +144,8 @@ This folder contains **simplified** n8n workflows for PreventIQ automation using
 2. Select `flow-f-report-generation-v2.json`
 3. Workflow will open in editor
 4. **Link credentials:**
-   - Click "Call generate-report" node → Select "Supabase API" credential
-5. Click **Save** (give it a name like "PreventIQ - Report Generation")
+   - Click "Call generate-report" node → Select "Supabase Service Role" credential
+5. Click **Save** (give it a name like "PreventIQ - Report Generation v2")
 6. **Test it:** Click "Test workflow" in top right
 
 ✅ **Done!** You can now generate reports on-demand.
@@ -273,10 +273,10 @@ After "Format HTML Report" node in Flow F:
 
 ### Common Issues
 
-#### "Supabase API credential not working"
+#### "Authentication failed" for Supabase calls
 **Solution:**
-- Double-check Host: `zdgvndxdhucbakguvkgw.supabase.co` (no https://)
-- Verify Service Role Secret is complete (starts with `eyJhbGc...`)
+- Double-check Authorization header format: `Bearer eyJhbGc...` (must include "Bearer ")
+- Verify Service Role Key is complete (starts with `eyJhbGc...`)
 - Test by running Flow F manually (simpler than Flow C)
 
 #### "Resend API authentication failed"
@@ -293,9 +293,10 @@ After "Format HTML Report" node in Flow F:
 
 #### "Assignment insert fails"
 **Solution:**
-- Check SQL syntax in "Store Assignment" node
-- Ensure all fields match campaigns data
-- Verify `assignments` table exists and is accessible
+- Check that assignments table exists
+- Verify all required fields are being sent (lead_id, persona_id, variant_subject_id, corr_id, status)
+- Check Supabase table permissions (service_role should have INSERT access)
+- Look at the error response in n8n execution logs
 
 #### "No execution when cron should fire"
 **Solution:**
