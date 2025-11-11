@@ -20,58 +20,57 @@ Deno.serve(async (req) => {
       );
     }
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      console.error('GEMINI_API_KEY not configured');
+    const AZURE_ENDPOINT = Deno.env.get('AZURE_OPENAI_ENDPOINT');
+    const AZURE_KEY = Deno.env.get('AZURE_OPENAI_KEY');
+    const MODEL_NAME = Deno.env.get('AZURE_MODEL_NAME') || 'grok-3';
+    
+    if (!AZURE_ENDPOINT || !AZURE_KEY) {
+      console.error('Azure OpenAI credentials not configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const prompt = `You are a healthcare marketing analyst. Your task is to classify a new lead into one of the following 6 archetypes based on their data.
-Return only a single JSON object with the key "archetype" containing the single best-fit ID.
+    const prompt = `You are a healthcare marketing analyst. Classify this lead into one of these 6 archetypes based on their data.
+Return ONLY a JSON object with the key "archetype" containing the ID.
 
 ARCHETYPES:
-- ARCH_PRO: 25-40, tech-savvy, seeks optimization, lives in a metro city (Mumbai, Delhi, Bangalore, Hyderabad).
-- ARCH_TP: 35-50, family-focused, worried about hereditary risks, diagnostic centers or hospitals.
-- ARCH_SEN: 55+, trusts doctors, wary of online ads, prefers established clinics.
-- ARCH_STU: 18-25, budget-conscious, student, wellness centers.
-- ARCH_RISK: 40+, knows they should get a checkup but procrastinates, any organization type.
-- ARCH_PRICE: Any age, primary motivation is a discount, typically smaller clinics or pharmacies.
+- ARCH_PRO: 25-40, tech-savvy, metro city (Mumbai, Delhi, Bangalore, Hyderabad)
+- ARCH_TP: 35-50, family-focused, worried about hereditary risks
+- ARCH_SEN: 55+, trusts doctors, wary of online ads
+- ARCH_STU: 18-25, budget-conscious, student
+- ARCH_RISK: 40+, procrastinates on health checkups
+- ARCH_PRICE: Any age, motivated by discounts
 
 LEAD DATA:
 - City: ${city || 'Not provided'}
 - Organization Type: ${org_type || 'Not provided'}
 - Language: ${lang}
 
-Based on this information, which archetype best fits this lead? Return only valid JSON like: {"archetype": "ARCH_PRO"}`;
+Return ONLY: {"archetype": "ARCH_XXX"}`;
 
     console.log('Classifying lead:', lead_id);
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`${AZURE_ENDPOINT}chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'api-key': AZURE_KEY,
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.3,
-          topK: 20,
-          topP: 0.8,
-          maxOutputTokens: 256,
-        }
+        model: MODEL_NAME,
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.3,
+        max_tokens: 100,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
+      console.error('Azure OpenAI error:', response.status, errorText);
       
       // Fallback to default archetype
       return new Response(
@@ -85,10 +84,10 @@ Based on this information, which archetype best fits this lead? Return only vali
     }
 
     const data = await response.json();
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const content = data.choices?.[0]?.message?.content;
     
     if (!content) {
-      throw new Error('No content in Gemini response');
+      throw new Error('No content in AI response');
     }
 
     // Parse the JSON response

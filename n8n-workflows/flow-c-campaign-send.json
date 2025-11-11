@@ -150,7 +150,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.resend.com/emails",
+        "url": "https://api.brevo.com/v3/smtp/email",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -164,11 +164,11 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"PreventIQ <noreply@preventiq.com>\",\n  \"to\": [\"{{ $json.lead_email }}\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": \"<p>Hi {{ $json.lead_name }},</p><p>{{ $json.subject }}</p><p><a href='https://preventiq.com/track?lead={{ $json.lead_id }}&variant={{ $json.variant_id }}'>Learn More</a></p><p>Best,<br>PreventIQ Team</p>\",\n  \"tags\": [\n    {\n      \"name\": \"campaign\",\n      \"value\": \"daily\"\n    },\n    {\n      \"name\": \"persona\",\n      \"value\": \"{{ $json.persona_id }}\"\n    },\n    {\n      \"name\": \"variant\",\n      \"value\": \"{{ $json.variant_id }}\"\n    },\n    {\n      \"name\": \"lead_id\",\n      \"value\": \"{{ $json.lead_id }}\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"sender\": {\n    \"name\": \"PreventIQ\",\n    \"email\": \"p24priyesh@gmail.com\"\n  },\n  \"to\": [\n    {\n      \"email\": \"{{ $json.lead_email }}\",\n      \"name\": \"{{ $json.lead_name }}\"\n    }\n  ],\n  \"subject\": \"{{ $json.subject }}\",\n  \"htmlContent\": \"<p>Hi {{ $json.lead_name }},</p><p>{{ $json.subject }}</p><p><a href='https://preventiq.com/track?lead={{ $json.lead_id }}&variant={{ $json.variant_id }}'>Learn More</a></p><p>Best,<br>PreventIQ Team</p>\",\n  \"tags\": [\"campaign\", \"persona_{{ $json.persona_id }}\", \"variant_{{ $json.variant_id }}\"]\n}",
         "options": {}
       },
-      "id": "send-email-resend",
-      "name": "Send Email via Resend",
+      "id": "send-email-brevo",
+      "name": "Send Email via Brevo",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -177,8 +177,8 @@
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "resend-api-header",
-          "name": "Resend API"
+          "id": "brevo-api-credential",
+          "name": "Brevo API"
         }
       }
     },
@@ -206,7 +206,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO email_log (assignment_id, email_address, subject_line, sent_at, email_id)\nVALUES (\n  (SELECT id FROM assignments WHERE lead_id = '{{ $('Split Campaigns').item.json.lead_id }}' ORDER BY created_at DESC LIMIT 1),\n  '{{ $('Split Campaigns').item.json.lead_email }}',\n  '{{ $('Split Campaigns').item.json.subject }}',\n  NOW(),\n  '{{ $json.id }}'\n)",
+        "query": "=INSERT INTO email_log (assignment_id, email_address, subject_line, sent_at, email_id)\nVALUES (\n  (SELECT id FROM assignments WHERE lead_id = '{{ $('Split Campaigns').item.json.lead_id }}' ORDER BY created_at DESC LIMIT 1),\n  '{{ $('Split Campaigns').item.json.lead_email }}',\n  '{{ $('Split Campaigns').item.json.subject }}',\n  NOW(),\n  '{{ $json.messageId }}'\n)",
         "options": {}
       },
       "id": "log-email",
@@ -282,14 +282,14 @@
       "main": [
         [
           {
-            "node": "Send Email via Resend",
+            "node": "Send Email via Brevo",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Send Email via Resend": {
+    "Send Email via Brevo": {
       "main": [
         [
           {

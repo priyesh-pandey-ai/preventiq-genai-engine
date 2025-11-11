@@ -106,9 +106,9 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.resend.com/emails",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "resendApi",
+        "url": "https://api.brevo.com/v3/smtp/email",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -120,7 +120,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"from\": \"PreventIQ Reports <reports@preventiq.com>\",\n  \"to\": [\"p24priyesh@gmail.com\"],\n  \"subject\": \"{{ $json.subject }}\",\n  \"html\": \"{{ $json.html }}\",\n  \"tags\": [\n    {\n      \"name\": \"type\",\n      \"value\": \"weekly-report\"\n    },\n    {\n      \"name\": \"generated_at\",\n      \"value\": \"{{ $json.report.generated_at }}\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"sender\": {\n    \"name\": \"PreventIQ Reports\",\n    \"email\": \"p24priyesh@gmail.com\"\n  },\n  \"to\": [\n    {\n      \"email\": \"p24priyesh@gmail.com\",\n      \"name\": \"PreventIQ Team\"\n    }\n  ],\n  \"subject\": \"{{ $json.subject }}\",\n  \"htmlContent\": \"{{ $json.html }}\",\n  \"tags\": [\"weekly-report\", \"generated_{{ $json.report.generated_at }}\"]\n}",
         "options": {}
       },
       "id": "send-report-email",
@@ -130,7 +130,13 @@
       "position": [
         1050,
         300
-      ]
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "brevo-api-credential",
+          "name": "Brevo API"
+        }
+      }
     }
   ],
   "pinData": {},

@@ -21,7 +21,9 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')!;
+    const AZURE_ENDPOINT = Deno.env.get('AZURE_OPENAI_ENDPOINT')!;
+    const AZURE_KEY = Deno.env.get('AZURE_OPENAI_KEY')!;
+    const MODEL_NAME = Deno.env.get('AZURE_MODEL_NAME')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get date range from request (default to last 7 days)
@@ -78,12 +80,12 @@ Deno.serve(async (req) => {
     const sortedKpis = [...kpis].sort((a, b) => Number(b.ctr) - Number(a.ctr));
     const bestPersona = sortedKpis[0];
 
-    // Step 5: Generate AI insights using Gemini
+    // Step 5: Generate AI insights using Azure OpenAI
     const kpiSummary = kpis.map(k => 
       `${k.persona_label}: ${k.total_sends} sends, ${k.total_clicks} clicks, ${(Number(k.ctr) * 100).toFixed(1)}% CTR`
     ).join('\n');
 
-    const geminiPrompt = `You are a marketing analyst. Based on the following campaign data, write a brief, insightful summary (under 100 words) explaining which persona was most engaged and why you think that is.
+    const aiPrompt = `You are a marketing analyst. Based on the following campaign data, write a brief, insightful summary (under 100 words) explaining which persona was most engaged and why you think that is.
 Then, propose 3 new, creative email subject lines tailored to the best-performing persona.
 
 DATA:
@@ -95,44 +97,42 @@ PMF Score: ${(finalPmfScore * 100).toFixed(1)}%
 
 Return only a single, valid JSON object with two keys: "summary" (string) and "next_ideas" (an array of 3 strings).`;
 
-    console.log('Calling Gemini for insights...');
+    console.log('Calling Azure OpenAI for insights...');
 
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
+    const aiResponse = await fetch(
+      `${AZURE_ENDPOINT}chat/completions`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'api-key': AZURE_KEY
+        },
         body: JSON.stringify({
-          contents: [{
-            parts: [{ text: geminiPrompt }]
-          }],
-          generationConfig: {
-            temperature: 0.7,
-            topK: 40,
-            topP: 0.9,
-            maxOutputTokens: 512,
-          }
+          model: MODEL_NAME,
+          messages: [{ role: 'user', content: aiPrompt }],
+          temperature: 0.7,
+          max_tokens: 512,
         }),
       }
     );
 
-    if (!geminiResponse.ok) {
-      const errorText = await geminiResponse.text();
-      console.error('Gemini API error:', errorText);
-      throw new Error(`Gemini API error: ${geminiResponse.status}`);
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('Azure OpenAI API error:', errorText);
+      throw new Error(`Azure OpenAI API error: ${aiResponse.status}`);
     }
 
-    const geminiData = await geminiResponse.json();
-    const geminiContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const aiData = await aiResponse.json();
+    const aiContent = aiData.choices?.[0]?.message?.content;
 
-    if (!geminiContent) {
-      throw new Error('No content in Gemini response');
+    if (!aiContent) {
+      throw new Error('No content in Azure OpenAI response');
     }
 
-    // Parse Gemini response
+    // Parse Azure OpenAI response
     let insights: { summary: string; next_ideas: string[] };
     try {
-      const cleanContent = geminiContent.replace(/```json\n?|\n?```/g, '').trim();
+      const cleanContent = aiContent.replace(/```json\n?|\n?```/g, '').trim();
       insights = JSON.parse(cleanContent);
     } catch (parseError) {
       console.error('Failed to parse Gemini response:', geminiContent);

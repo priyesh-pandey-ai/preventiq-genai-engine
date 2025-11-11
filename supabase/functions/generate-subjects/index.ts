@@ -21,9 +21,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      console.error('GEMINI_API_KEY not configured');
+    const AZURE_ENDPOINT = Deno.env.get('AZURE_OPENAI_ENDPOINT');
+    const AZURE_KEY = Deno.env.get('AZURE_OPENAI_KEY');
+    const MODEL_NAME = Deno.env.get('AZURE_MODEL_NAME') || 'grok-3';
+    
+    if (!AZURE_ENDPOINT || !AZURE_KEY) {
+      console.error('Azure OpenAI credentials not configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -33,28 +36,23 @@ Deno.serve(async (req) => {
     const prompt = `You are a healthcare marketing expert. Generate 3 concise email subject lines for a "${category}" preventive health campaign in ${lang === 'hi' ? 'Hindi' : 'English'}.
 The audience is general population in India. Each subject must be under 52 characters.
 Do not use medical claims like "cure" or "guarantee".
-Return only a valid JSON object with a single key "subjects" containing an array of 3 strings.
-Example: {"subjects": ["Is your heart trying to tell you something?", "3 signs you shouldn't ignore", "Take control of your health today"]}`;
+Return ONLY a valid JSON object: {"subjects": ["Subject 1", "Subject 2", "Subject 3"]}`;
 
-    console.log('Calling Google Gemini API for subject generation...');
+    console.log('Calling Azure OpenAI (Grok-3) for subject generation...');
     
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`${AZURE_ENDPOINT}chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'api-key': AZURE_KEY,
       },
       body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.9,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024,
-        }
+        model: MODEL_NAME,
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.9,
+        max_tokens: 200,
       }),
     });
 
@@ -83,11 +81,11 @@ Example: {"subjects": ["Is your heart trying to tell you something?", "3 signs y
     }
 
     const data = await response.json();
-    console.log('Gemini API response received:', data);
+    console.log('Azure OpenAI (Grok-3) response received');
 
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const content = data.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error('No content in Gemini response');
+      throw new Error('No content in AI response');
     }
 
     // Parse the JSON response from the AI

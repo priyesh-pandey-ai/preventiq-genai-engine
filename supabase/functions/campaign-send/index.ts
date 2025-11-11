@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
       .from('leads')
       .select('id, name, email, city, org_type, lang')
       .is('is_test', false)
-      .limit(50); // Process max 50 leads per run
+      .limit(10); // Process max 10 leads per run (with 7s delay = ~70s total)
 
     if (leadsError) throw leadsError;
 
@@ -102,8 +102,16 @@ Deno.serve(async (req) => {
 
     const campaignData = [];
 
-    // Step 2: Process each lead
-    for (const lead of leadsToProcess) {
+    // Step 2: Process each lead (with delay to avoid API rate limits)
+    for (let i = 0; i < leadsToProcess.length; i++) {
+      const lead = leadsToProcess[i];
+      
+      // Add 7-second delay between leads to stay under Gemini's 10 req/min limit
+      if (i > 0) {
+        console.log(`Waiting 7 seconds before processing lead ${i + 1}/${leadsToProcess.length}...`);
+        await new Promise(resolve => setTimeout(resolve, 7000));
+      }
+      
       try {
         // Step 2a: Classify lead into persona
         console.log(`Classifying lead ${lead.id}...`);
