@@ -45,17 +45,19 @@ This folder contains 2 n8n workflows for PreventIQ automation.
 
 ### Step 2: Add Credentials
 
-You need 3 credentials in n8n:
+You need 2 credentials in n8n (updated - using native Supabase integration):
 
-#### 2.1 Supabase Service Role
+#### 2.1 Supabase API (Replaces both Service Role + Postgres!)
 
 1. In n8n, go to **Credentials** → **Add Credential**
-2. Search for "HTTP Header Auth"
+2. Search for "Supabase"
 3. Configure:
-   - **Credential Name:** `Supabase Service Role`
-   - **Name:** `Authorization`
-   - **Value:** `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZ3ZuZHhkaHVjYmFrZ3V2a2d3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjgwNTAxNSwiZXhwIjoyMDc4MzgxMDE1fQ.XPmdKJ8g9GWx8UOKLTQ8FpZAIhDKDj-L8Kg-_XeO37U`
+   - **Credential Name:** `Supabase API`
+   - **Host:** `https://zdgvndxdhucbakguvkgw.supabase.co`
+   - **Service Role Secret:** `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpkZ3ZuZHhkaHVjYmFrZ3V2a2d3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjgwNTAxNSwiZXhwIjoyMDc4MzgxMDE1fQ.XPmdKJ8g9GWx8UOKLTQ8FpZAIhDKDj-L8Kg-_XeO37U`
 4. Click **Create**
+
+**Note:** This single credential handles both Edge Function calls AND database operations!
 
 #### 2.2 Resend API
 
@@ -67,38 +69,6 @@ You need 3 credentials in n8n:
    - **Value:** `Bearer re_GpPQkJU5_MVpcSg4d1VZYTQ5sVUU4LxZ2`
 4. Click **Create**
 
-#### 2.3 Supabase Postgres (for Flow C - assignments table)
-
-**Option A: Using Connection String (Recommended):**
-
-1. In n8n, go to **Credentials** → **Add Credential**
-2. Search for "Postgres"
-3. Configure:
-   - **Credential Name:** `Supabase Postgres`
-   - **Connection Type:** `Connection String`
-   - **Connection String:** `postgresql://postgres.zdgvndxdhucbakguvkgw:gaim123@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres`
-4. Click **Create**
-
-**Option B: Using Individual Fields (Alternative):**
-
-1. In n8n, go to **Credentials** → **Add Credential**
-2. Search for "Postgres"
-3. Configure:
-   - **Credential Name:** `Supabase Postgres`
-   - **Host:** `aws-0-ap-southeast-1.pooler.supabase.com`
-   - **Database:** `postgres`
-   - **User:** `postgres.zdgvndxdhucbakguvkgw`
-   - **Password:** `gaim123`
-   - **Port:** `6543`
-   - **SSL:** `require` (try this instead of `allow`)
-   - **Ignore SSL Issues:** `false`
-4. Click **Create**
-
-**If connection still fails, try Transaction Pooler:**
-- **Host:** `db.zdgvndxdhucbakguvkgw.supabase.co`
-- **Port:** `5432`
-- **SSL:** `require`
-
 ---
 
 ### Step 3: Import Workflows
@@ -108,26 +78,44 @@ You need 3 credentials in n8n:
 1. In n8n, click **Workflows** → **Add Workflow** → **Import from File**
 2. Upload `flow-c-campaign-send.json`
 3. The workflow will open in the editor
-4. **Link credentials:**
+4. **Update nodes to use Supabase API credential:**
    - Click on "Call campaign-send Edge Function" node
-   - Select credential: `Supabase Service Role`
-   - Click on "Send Email via Resend" node
+   - Change node type to **"Supabase"** (instead of HTTP Request)
+   - Select operation: **"Invoke Function"**
+   - Function name: `campaign-send`
+   - Credential: `Supabase API`
+   
+   **OR keep HTTP Request node and:**
+   - Use HTTP Header Auth credential with:
+   - Header: `Authorization`
+   - Value: `Bearer <service_role_key>`
+   
+5. Click on "Send Email via Resend" node
    - Select credential: `Resend API`
-   - Click on "Store Assignment in Supabase" node
-   - Select credential: `Supabase Postgres`
-   - Click on "Log Error to Database" node
-   - Select credential: `Supabase Postgres`
-5. Click **Save** (top right)
-6. Click **Activate** toggle (top right) to enable the cron trigger
+   
+6. **For database operations**, replace Postgres nodes with **Supabase nodes**:
+   - Change "Store Assignment in Supabase" to Supabase node
+   - Operation: **"Execute SQL"**
+   - SQL query: (same INSERT statement)
+   - Credential: `Supabase API`
+
+7. Click **Save** (top right)
+8. Click **Activate** toggle (top right) to enable the cron trigger
+
+**Note:** The imported JSON uses HTTP Request nodes. You can either:
+- Keep them and use HTTP Header Auth credentials
+- OR replace with native Supabase nodes (recommended for cleaner workflow)
 
 #### Import Flow F (Report Generation):
 
 1. In n8n, click **Workflows** → **Add Workflow** → **Import from File**
 2. Upload `flow-f-report-generation.json`
 3. The workflow will open in the editor
-4. **Link credentials:**
+4. **Update to use Supabase API credential:**
    - Click on "Call generate-report Edge Function" node
-   - Select credential: `Supabase Service Role`
+   - Option 1: Use Supabase node → Invoke Function → `generate-report`
+   - Option 2: Keep HTTP Request node with HTTP Header Auth
+   - Select credential: `Supabase API` (if using Supabase node)
 5. Click **Save**
 6. To run manually: Click **Test workflow** or **Execute Workflow**
 
