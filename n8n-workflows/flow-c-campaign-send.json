@@ -185,7 +185,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO assignments (lead_id, variant_id, persona_id, channel)\nVALUES ('{{ $('Split Campaigns').item.json.lead_id }}', '{{ $('Split Campaigns').item.json.variant_id }}', '{{ $('Split Campaigns').item.json.persona_id }}', 'email')",
+        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, channel)\nVALUES ('{{ $('Split Campaigns').item.json.lead_id }}', '{{ $('Split Campaigns').item.json.persona_id }}', '{{ $('Split Campaigns').item.json.variant_id }}', 'email')",
         "options": {}
       },
       "id": "record-assignment",
@@ -206,11 +206,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO email_log (assignment_id, email_address, subject_line, sent_at, email_id)\nVALUES (\n  (SELECT id FROM assignments WHERE lead_id = '{{ $('Split Campaigns').item.json.lead_id }}' ORDER BY created_at DESC LIMIT 1),\n  '{{ $('Split Campaigns').item.json.lead_email }}',\n  '{{ $('Split Campaigns').item.json.subject }}',\n  NOW(),\n  '{{ $json.messageId }}'\n)",
+        "query": "=INSERT INTO events (assignment_id, type, meta, ts)\nVALUES (\n  (SELECT id FROM assignments WHERE lead_id = '{{ $('Split Campaigns').item.json.lead_id }}' ORDER BY send_at DESC LIMIT 1),\n  'sent',\n  jsonb_build_object(\n    'email_address', '{{ $('Split Campaigns').item.json.lead_email }}',\n    'subject_line', '{{ $('Split Campaigns').item.json.subject }}',\n    'brevo_message_id', '{{ $json.messageId }}',\n    'variant_id', '{{ $('Split Campaigns').item.json.variant_id }}'\n  ),\n  NOW()\n)\nON CONFLICT (assignment_id, type) DO UPDATE SET\n  meta = EXCLUDED.meta,\n  ts = EXCLUDED.ts",
         "options": {}
       },
       "id": "log-email",
-      "name": "Log Email",
+      "name": "Log Email Sent",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [
@@ -304,7 +304,7 @@
       "main": [
         [
           {
-            "node": "Log Email",
+            "node": "Log Email Sent",
             "type": "main",
             "index": 0
           }
