@@ -185,7 +185,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, channel)\nVALUES ('{{ $('Split Campaigns').item.json.lead_id }}', '{{ $('Split Campaigns').item.json.persona_id }}', '{{ $('Split Campaigns').item.json.variant_id }}', 'email')",
+        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, status, send_at, sent_at)\nVALUES (\n  '{{ $('Split Campaigns').item.json.lead_id }}',\n  '{{ $('Split Campaigns').item.json.persona_id }}',\n  '{{ $('Split Campaigns').item.json.variant_id }}',\n  'sent',\n  NOW(),\n  NOW()\n)",
         "options": {}
       },
       "id": "record-assignment",
