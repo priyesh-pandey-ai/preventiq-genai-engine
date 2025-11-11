@@ -120,7 +120,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"sender\": {\n    \"name\": \"PreventIQ Reports\",\n    \"email\": \"p24priyesh@gmail.com\"\n  },\n  \"to\": [\n    {\n      \"email\": \"p24priyesh@gmail.com\",\n      \"name\": \"PreventIQ Team\"\n    }\n  ],\n  \"subject\": \"{{ $json.subject }}\",\n  \"htmlContent\": \"{{ $json.html }}\",\n  \"tags\": [\"weekly-report\", \"generated_{{ $json.report.generated_at }}\"]\n}",
+        "jsonBody": "={{ \n  JSON.stringify({\n    sender: {\n      name: 'PreventIQ Reports',\n      email: 'p24priyesh@gmail.com'\n    },\n    to: [{\n      email: 'p24priyesh@gmail.com',\n      name: 'PreventIQ Team'\n    }],\n    subject: $json.subject,\n    htmlContent: $json.html,\n    tags: ['weekly-report', 'generated_' + $json.report.generated_at]\n  })\n}}",
         "options": {}
       },
       "id": "send-report-email",
