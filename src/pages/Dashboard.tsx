@@ -2,14 +2,18 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { LogOut, BarChart3, Mail, Users, TrendingUp } from "lucide-react";
+import { LogOut, BarChart3, Mail, Users, TrendingUp, Activity } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import WorkflowStatus from "@/components/WorkflowStatus";
+import RecentLeads from "@/components/RecentLeads";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const dashboardStats = useDashboardData();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -85,7 +89,7 @@ const Dashboard = () => {
           <p className="text-muted-foreground">{userEmail}</p>
         </div>
 
-        {/* Placeholder Dashboard Cards */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
             <div className="flex items-center gap-4">
@@ -94,7 +98,13 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Campaigns Sent</p>
-                <p className="text-2xl font-heading font-bold text-foreground">0</p>
+                <p className="text-2xl font-heading font-bold text-foreground">
+                  {dashboardStats.loading ? (
+                    <Activity className="h-5 w-5 animate-pulse" />
+                  ) : (
+                    dashboardStats.totalCampaigns
+                  )}
+                </p>
               </div>
             </div>
           </Card>
@@ -106,7 +116,13 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Total Leads</p>
-                <p className="text-2xl font-heading font-bold text-foreground">0</p>
+                <p className="text-2xl font-heading font-bold text-foreground">
+                  {dashboardStats.loading ? (
+                    <Activity className="h-5 w-5 animate-pulse" />
+                  ) : (
+                    dashboardStats.totalLeads
+                  )}
+                </p>
               </div>
             </div>
           </Card>
@@ -118,7 +134,13 @@ const Dashboard = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Click Rate</p>
-                <p className="text-2xl font-heading font-bold text-foreground">0%</p>
+                <p className="text-2xl font-heading font-bold text-foreground">
+                  {dashboardStats.loading ? (
+                    <Activity className="h-5 w-5 animate-pulse" />
+                  ) : (
+                    `${dashboardStats.clickRate}%`
+                  )}
+                </p>
               </div>
             </div>
           </Card>
@@ -129,33 +151,73 @@ const Dashboard = () => {
                 <BarChart3 className="h-6 w-6 text-healthcare-purple" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">PMF Score</p>
-                <p className="text-2xl font-heading font-bold text-foreground">-</p>
+                <p className="text-sm text-muted-foreground">Total Clicks</p>
+                <p className="text-2xl font-heading font-bold text-foreground">
+                  {dashboardStats.loading ? (
+                    <Activity className="h-5 w-5 animate-pulse" />
+                  ) : (
+                    dashboardStats.totalClicks
+                  )}
+                </p>
               </div>
             </div>
           </Card>
         </div>
 
-        {/* Coming Soon Section */}
-        <Card className="p-12 text-center bg-gradient-card border-2 border-border/50 rounded-2xl">
-          <div className="max-w-2xl mx-auto">
+        {/* Workflow Status and Recent Leads */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
+          <WorkflowStatus />
+          <RecentLeads />
+        </div>
+
+        {/* Setup Instructions */}
+        <Card className="p-8 text-center bg-gradient-card border-2 border-border/50 rounded-2xl">
+          <div className="max-w-3xl mx-auto">
             <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-primary text-primary-foreground mb-6 shadow-soft">
               <BarChart3 className="w-4 h-4" />
-              <span className="text-sm font-semibold">Coming Soon</span>
+              <span className="text-sm font-semibold">Getting Started</span>
             </div>
             <h3 className="text-2xl font-heading font-bold text-foreground mb-4">
-              Your Campaign Analytics Dashboard
+              Complete Your Setup
             </h3>
-            <p className="text-muted-foreground mb-8 leading-relaxed">
-              Track your preventive healthcare campaigns, monitor engagement, and get AI-powered insights to optimize your outreach. Full analytics and reporting features are being built.
-            </p>
-            <Button 
-              variant="outline"
-              onClick={() => navigate("/")}
-              className="rounded-full font-semibold"
-            >
-              Back to Home
-            </Button>
+            <div className="text-left space-y-4 mb-8">
+              <div className="p-4 bg-background/50 rounded-lg border border-border/50">
+                <h4 className="font-semibold text-foreground mb-2">1. Configure n8n Workflows</h4>
+                <p className="text-sm text-muted-foreground">
+                  Import the workflow JSON files from the <code className="bg-muted px-1 py-0.5 rounded">n8n-workflows</code> directory
+                  into your n8n instance to enable automated campaigns and event tracking.
+                </p>
+              </div>
+              <div className="p-4 bg-background/50 rounded-lg border border-border/50">
+                <h4 className="font-semibold text-foreground mb-2">2. Set Up Brevo Integration</h4>
+                <p className="text-sm text-muted-foreground">
+                  Connect your Brevo account in n8n to enable email sending. See the 
+                  <code className="bg-muted px-1 py-0.5 rounded ml-1">n8n-workflows/CREDENTIALS-SETUP.md</code> file for details.
+                </p>
+              </div>
+              <div className="p-4 bg-background/50 rounded-lg border border-border/50">
+                <h4 className="font-semibold text-foreground mb-2">3. Test the Flow</h4>
+                <p className="text-sm text-muted-foreground">
+                  Submit a test lead via the landing page to verify end-to-end functionality.
+                  You should receive a personalized email and be able to track clicks.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-4 justify-center">
+              <Button 
+                variant="outline"
+                onClick={() => navigate("/")}
+                className="rounded-full font-semibold"
+              >
+                Back to Home
+              </Button>
+              <Button 
+                onClick={() => window.open('https://docs.n8n.io/', '_blank')}
+                className="rounded-full font-semibold bg-gradient-button"
+              >
+                n8n Documentation
+              </Button>
+            </div>
           </div>
         </Card>
       </main>
