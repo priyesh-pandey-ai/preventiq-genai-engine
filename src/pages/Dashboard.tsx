@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, BarChart3, Mail, Users, TrendingUp, Activity, UserCircle, Database } from "lucide-react";
+import { LogOut, BarChart3, Mail, Users, TrendingUp, Activity, UserCircle, Database, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { usePersonas } from "@/hooks/usePersonas";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import WorkflowStatus from "@/components/WorkflowStatus";
 import RecentLeads from "@/components/RecentLeads";
 import WelcomeGuide from "@/components/WelcomeGuide";
@@ -15,6 +16,8 @@ import { PersonaCard } from "@/components/PersonaCard";
 import { PersonaEditor } from "@/components/PersonaEditor";
 import { CustomerImport } from "@/components/CustomerImport";
 import { CustomerList } from "@/components/CustomerList";
+import { UserProfileCard } from "@/components/UserProfileCard";
+import { WorkflowTriggers } from "@/components/WorkflowTriggers";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -22,6 +25,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const dashboardStats = useDashboardData();
   const { personas, loading: personasLoading, refetch: refetchPersonas } = usePersonas();
+  const { profile } = useUserProfile();
   const [selectedPersona, setSelectedPersona] = useState<{
     id: string;
     label: string;
@@ -153,7 +157,7 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="overview" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               Overview
@@ -165,6 +169,10 @@ const Dashboard = () => {
             <TabsTrigger value="customers" className="gap-2">
               <Database className="h-4 w-4" />
               Customers
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Settings className="h-4 w-4" />
+              Settings
             </TabsTrigger>
           </TabsList>
 
@@ -187,6 +195,12 @@ const Dashboard = () => {
                   const customersTab = document.querySelector('[value="customers"]');
                   if (customersTab instanceof HTMLElement) {
                     customersTab.click();
+                  }
+                }}
+                onNavigateToSettings={() => {
+                  const settingsTab = document.querySelector('[value="settings"]');
+                  if (settingsTab instanceof HTMLElement) {
+                    settingsTab.click();
                   }
                 }}
               />
@@ -342,6 +356,14 @@ const Dashboard = () => {
           <TabsContent value="customers" className="space-y-6">
             <CustomerImport onImportComplete={handleImportComplete} />
             <CustomerList key={customerRefreshKey} />
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <UserProfileCard />
+              <WorkflowTriggers />
+            </div>
           </TabsContent>
         </Tabs>
       </main>

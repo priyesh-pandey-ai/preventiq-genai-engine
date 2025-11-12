@@ -1,20 +1,26 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Rocket, Users, Mail, BarChart3, CheckCircle2, AlertCircle } from "lucide-react";
+import { Rocket, Users, Mail, BarChart3, CheckCircle2, AlertCircle, Settings } from "lucide-react";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface WelcomeGuideProps {
   hasError?: boolean;
   errorMessage?: string;
   onNavigateToPersonas?: () => void;
   onNavigateToCustomers?: () => void;
+  onNavigateToSettings?: () => void;
 }
 
 const WelcomeGuide = ({ 
   hasError = false, 
   errorMessage, 
   onNavigateToPersonas,
-  onNavigateToCustomers 
+  onNavigateToCustomers,
+  onNavigateToSettings
 }: WelcomeGuideProps) => {
+  const { profile } = useUserProfile();
+  const hasProfile = profile?.org_type && profile?.city;
+
   return (
     <Card className="p-8 bg-gradient-card border-2 border-border/50 rounded-2xl">
       <div className="max-w-4xl mx-auto">
@@ -54,6 +60,37 @@ const WelcomeGuide = ({
 
         {/* Getting Started Steps */}
         <div className="space-y-4 mb-8">
+          {/* Step 0: Complete Profile (if not done) */}
+          {!hasProfile && (
+            <div className="flex items-start gap-4 p-5 bg-yellow-500/5 rounded-lg border-2 border-yellow-500/30 hover:border-yellow-500/50 transition-all">
+              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-yellow-500/10 flex-shrink-0">
+                <span className="text-lg font-bold text-yellow-600">!</span>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <Settings className="w-5 h-5 text-yellow-600" />
+                  <h3 className="font-heading font-bold text-foreground">
+                    Complete Your Profile First
+                  </h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Set up your organization details so customers automatically inherit your organization type. 
+                  This saves time when importing customers.
+                </p>
+                {onNavigateToSettings && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={onNavigateToSettings}
+                    className="rounded-full border-yellow-500/30 hover:border-yellow-500/50"
+                  >
+                    Complete Profile
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-start gap-4 p-5 bg-background/50 rounded-lg border border-border/50 hover:border-primary/30 transition-all">
             <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 flex-shrink-0">
               <span className="text-lg font-bold text-primary">1</span>
