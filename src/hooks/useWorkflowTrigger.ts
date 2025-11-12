@@ -8,6 +8,31 @@ export const useWorkflowTrigger = () => {
   const triggerCampaignSend = async () => {
     setTriggering(true);
     try {
+      // First, get unassigned leads count
+      const { data: leads, error: leadsError } = await supabase
+        .from('leads')
+        .select('id', { count: 'exact', head: false })
+        .is('is_test', false)
+        .limit(10);
+
+      if (leadsError) throw leadsError;
+
+      // Filter out already assigned leads
+      const leadIds = leads?.map(l => l.id) || [];
+      const { data: assignments } = await supabase
+        .from('assignments')
+        .select('lead_id')
+        .in('lead_id', leadIds);
+
+      const assignedLeadIds = new Set(assignments?.map(a => a.lead_id) || []);
+      const unassignedCount = leadIds.filter(id => !assignedLeadIds.has(id)).length;
+
+      if (unassignedCount === 0) {
+        toast.info("No unassigned leads to process");
+        return { success: true, data: { message: "No leads to process" } };
+      }
+
+      // Call the Edge Function directly (which does the actual work)
       const { data, error } = await supabase.functions.invoke('campaign-send', {
         body: {}
       });

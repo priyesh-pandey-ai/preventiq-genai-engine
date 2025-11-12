@@ -1,10 +1,28 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Zap, Mail, FileText, Loader2, PlayCircle } from "lucide-react";
+import { Zap, Mail, FileText, Loader2, PlayCircle, RefreshCw } from "lucide-react";
 import { useWorkflowTrigger } from "@/hooks/useWorkflowTrigger";
 
-export const WorkflowTriggers = () => {
+interface WorkflowTriggersProps {
+  onTriggerComplete?: () => void;
+}
+
+export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) => {
   const { triggering, triggerCampaignSend, triggerGenerateReport } = useWorkflowTrigger();
+
+  const handleCampaignSend = async () => {
+    const result = await triggerCampaignSend();
+    if (result.success && onTriggerComplete) {
+      onTriggerComplete();
+    }
+  };
+
+  const handleGenerateReport = async () => {
+    const result = await triggerGenerateReport();
+    if (result.success && onTriggerComplete) {
+      onTriggerComplete();
+    }
+  };
 
   return (
     <Card className="p-6 bg-card border-2 border-border/50 rounded-xl">
@@ -17,7 +35,7 @@ export const WorkflowTriggers = () => {
             Manual Workflow Triggers
           </h3>
           <p className="text-sm text-muted-foreground">
-            Trigger automation workflows manually
+            Process leads and generate reports on-demand
           </p>
         </div>
       </div>
@@ -29,15 +47,15 @@ export const WorkflowTriggers = () => {
               <div className="flex items-center gap-2 mb-2">
                 <Mail className="h-4 w-4 text-primary" />
                 <h4 className="font-semibold text-foreground">
-                  Send Campaigns
+                  Process Campaign Leads
                 </h4>
               </div>
               <p className="text-sm text-muted-foreground mb-3">
-                Process unassigned leads and prepare personalized email campaigns. 
-                This will classify leads into personas and generate campaign variants.
+                Classify unassigned leads into personas and generate personalized email campaigns. 
+                This processes up to 10 leads at a time.
               </p>
               <Button
-                onClick={triggerCampaignSend}
+                onClick={handleCampaignSend}
                 disabled={triggering}
                 size="sm"
                 className="gap-2"
@@ -50,7 +68,7 @@ export const WorkflowTriggers = () => {
                 ) : (
                   <>
                     <PlayCircle className="h-4 w-4" />
-                    Trigger Campaign Send
+                    Process Leads Now
                   </>
                 )}
               </Button>
@@ -64,7 +82,7 @@ export const WorkflowTriggers = () => {
               <div className="flex items-center gap-2 mb-2">
                 <FileText className="h-4 w-4 text-healthcare-green" />
                 <h4 className="font-semibold text-foreground">
-                  Generate Report
+                  Generate Analytics Report
                 </h4>
               </div>
               <p className="text-sm text-muted-foreground mb-3">
@@ -72,7 +90,7 @@ export const WorkflowTriggers = () => {
                 engagement metrics, and AI-powered recommendations.
               </p>
               <Button
-                onClick={triggerGenerateReport}
+                onClick={handleGenerateReport}
                 disabled={triggering}
                 size="sm"
                 variant="outline"
@@ -97,8 +115,8 @@ export const WorkflowTriggers = () => {
 
       <div className="mt-4 p-3 bg-primary/5 rounded-lg border border-primary/10">
         <p className="text-xs text-muted-foreground">
-          <strong className="text-foreground">Note:</strong> These workflows normally run automatically. 
-          Use manual triggers for testing or when you need immediate processing.
+          <strong className="text-foreground">Note:</strong> These functions process data immediately. 
+          The full n8n workflow automation runs on schedule (daily at 9 AM for campaigns).
         </p>
       </div>
     </Card>

@@ -62,29 +62,29 @@ const Dashboard = () => {
   }, [navigate]);
 
   // Fetch lead counts per persona
+  const fetchPersonaLeadCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('assignments')
+        .select('persona_id');
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      data?.forEach((assignment) => {
+        const personaId = assignment.persona_id;
+        if (personaId) {
+          counts[personaId] = (counts[personaId] || 0) + 1;
+        }
+      });
+
+      setPersonaLeadCounts(counts);
+    } catch (error) {
+      console.error("Error fetching persona lead counts:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchPersonaLeadCounts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('assignments')
-          .select('persona_id');
-
-        if (error) throw error;
-
-        const counts: Record<string, number> = {};
-        data?.forEach((assignment) => {
-          const personaId = assignment.persona_id;
-          if (personaId) {
-            counts[personaId] = (counts[personaId] || 0) + 1;
-          }
-        });
-
-        setPersonaLeadCounts(counts);
-      } catch (error) {
-        console.error("Error fetching persona lead counts:", error);
-      }
-    };
-
     fetchPersonaLeadCounts();
   }, []);
 
@@ -104,6 +104,14 @@ const Dashboard = () => {
 
   const handleImportComplete = () => {
     setCustomerRefreshKey(prev => prev + 1);
+    // Also refresh persona counts and dashboard stats
+    fetchPersonaLeadCounts();
+  };
+
+  const handleWorkflowTriggerComplete = () => {
+    // Refresh all data after workflow trigger
+    setCustomerRefreshKey(prev => prev + 1);
+    fetchPersonaLeadCounts();
   };
 
   const handleLogout = async () => {
@@ -362,7 +370,7 @@ const Dashboard = () => {
           <TabsContent value="settings" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <UserProfileCard />
-              <WorkflowTriggers />
+              <WorkflowTriggers onTriggerComplete={handleWorkflowTriggerComplete} />
             </div>
           </TabsContent>
         </Tabs>
