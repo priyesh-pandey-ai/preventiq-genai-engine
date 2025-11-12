@@ -30,14 +30,20 @@ export const useDashboardData = () => {
           .from('leads')
           .select('*', { count: 'exact', head: true });
 
-        if (leadsError) throw leadsError;
+        if (leadsError) {
+          console.error('Error fetching leads:', leadsError);
+          throw new Error(`Failed to fetch leads: ${leadsError.message}`);
+        }
 
         // Fetch total campaigns (assignments)
         const { count: campaignsCount, error: campaignsError } = await supabase
           .from('assignments')
           .select('*', { count: 'exact', head: true });
 
-        if (campaignsError) throw campaignsError;
+        if (campaignsError) {
+          console.error('Error fetching campaigns:', campaignsError);
+          throw new Error(`Failed to fetch campaigns: ${campaignsError.message}`);
+        }
 
         // Fetch total clicks
         const { count: clicksCount, error: clicksError } = await supabase
@@ -45,7 +51,10 @@ export const useDashboardData = () => {
           .select('*', { count: 'exact', head: true })
           .eq('type', 'click');
 
-        if (clicksError) throw clicksError;
+        if (clicksError) {
+          console.error('Error fetching events:', clicksError);
+          throw new Error(`Failed to fetch events: ${clicksError.message}`);
+        }
 
         const totalLeads = leadsCount || 0;
         const totalCampaigns = campaignsCount || 0;
@@ -64,7 +73,7 @@ export const useDashboardData = () => {
         });
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        const errorMessage = error instanceof Error ? error.message : 'Failed to load dashboard data';
+        const errorMessage = error instanceof Error ? error.message : 'Failed to load dashboard data. Please check your connection and try refreshing the page.';
         setStats(prev => ({
           ...prev,
           loading: false,
@@ -82,7 +91,15 @@ export const useDashboardData = () => {
         { event: '*', schema: 'public', table: 'leads' },
         () => fetchDashboardData()
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIPTION_ERROR') {
+          console.error('Failed to subscribe to leads changes');
+          setStats(prev => ({
+            ...prev,
+            error: 'Real-time updates unavailable. Data may not be current.',
+          }));
+        }
+      });
 
     const assignmentsSubscription = supabase
       .channel('assignments-changes')
@@ -90,7 +107,11 @@ export const useDashboardData = () => {
         { event: '*', schema: 'public', table: 'assignments' },
         () => fetchDashboardData()
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIPTION_ERROR') {
+          console.error('Failed to subscribe to assignments changes');
+        }
+      });
 
     const eventsSubscription = supabase
       .channel('events-changes')
@@ -98,7 +119,11 @@ export const useDashboardData = () => {
         { event: '*', schema: 'public', table: 'events' },
         () => fetchDashboardData()
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIPTION_ERROR') {
+          console.error('Failed to subscribe to events changes');
+        }
+      });
 
     return () => {
       leadsSubscription.unsubscribe();

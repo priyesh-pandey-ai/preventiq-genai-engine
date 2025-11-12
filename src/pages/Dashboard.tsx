@@ -10,6 +10,7 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { usePersonas } from "@/hooks/usePersonas";
 import WorkflowStatus from "@/components/WorkflowStatus";
 import RecentLeads from "@/components/RecentLeads";
+import WelcomeGuide from "@/components/WelcomeGuide";
 import { PersonaCard } from "@/components/PersonaCard";
 import { PersonaEditor } from "@/components/PersonaEditor";
 import { CustomerImport } from "@/components/CustomerImport";
@@ -169,6 +170,28 @@ const Dashboard = () => {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            {/* Show Welcome Guide if no data exists */}
+            {!dashboardStats.loading && 
+             dashboardStats.totalLeads === 0 && 
+             dashboardStats.totalCampaigns === 0 && (
+              <WelcomeGuide 
+                hasError={!!dashboardStats.error}
+                errorMessage={dashboardStats.error || undefined}
+                onNavigateToPersonas={() => {
+                  const personasTab = document.querySelector('[value="personas"]');
+                  if (personasTab instanceof HTMLElement) {
+                    personasTab.click();
+                  }
+                }}
+                onNavigateToCustomers={() => {
+                  const customersTab = document.querySelector('[value="customers"]');
+                  if (customersTab instanceof HTMLElement) {
+                    customersTab.click();
+                  }
+                }}
+              />
+            )}
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
