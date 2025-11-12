@@ -2,18 +2,35 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { LogOut, BarChart3, Mail, Users, TrendingUp, Activity } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LogOut, BarChart3, Mail, Users, TrendingUp, Activity, UserCircle, Database } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { usePersonas } from "@/hooks/usePersonas";
 import WorkflowStatus from "@/components/WorkflowStatus";
 import RecentLeads from "@/components/RecentLeads";
+import { PersonaCard } from "@/components/PersonaCard";
+import { PersonaEditor } from "@/components/PersonaEditor";
+import { CustomerImport } from "@/components/CustomerImport";
+import { CustomerList } from "@/components/CustomerList";
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const dashboardStats = useDashboardData();
+  const { personas, loading: personasLoading, refetch: refetchPersonas } = usePersonas();
+  const [selectedPersona, setSelectedPersona] = useState<{
+    id: string;
+    label: string;
+    description: string;
+    tone_defaults?: string[];
+    channels?: string[];
+  } | null>(null);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [personaLeadCounts, setPersonaLeadCounts] = useState<Record<string, number>>({});
+  const [customerRefreshKey, setCustomerRefreshKey] = useState(0);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -38,6 +55,51 @@ const Dashboard = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  // Fetch lead counts per persona
+  useEffect(() => {
+    const fetchPersonaLeadCounts = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('assignments')
+          .select('persona_id');
+
+        if (error) throw error;
+
+        const counts: Record<string, number> = {};
+        data?.forEach((assignment) => {
+          const personaId = assignment.persona_id;
+          if (personaId) {
+            counts[personaId] = (counts[personaId] || 0) + 1;
+          }
+        });
+
+        setPersonaLeadCounts(counts);
+      } catch (error) {
+        console.error("Error fetching persona lead counts:", error);
+      }
+    };
+
+    fetchPersonaLeadCounts();
+  }, []);
+
+  const handleEditPersona = (persona: typeof selectedPersona) => {
+    setSelectedPersona(persona);
+    setIsEditorOpen(true);
+  };
+
+  const handleEditorClose = () => {
+    setIsEditorOpen(false);
+    setSelectedPersona(null);
+  };
+
+  const handlePersonaSave = () => {
+    refetchPersonas();
+  };
+
+  const handleImportComplete = () => {
+    setCustomerRefreshKey(prev => prev + 1);
+  };
 
   const handleLogout = async () => {
     try {
@@ -89,138 +151,185 @@ const Dashboard = () => {
           <p className="text-muted-foreground">{userEmail}</p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-lg">
-                <Mail className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Campaigns Sent</p>
-                <p className="text-2xl font-heading font-bold text-foreground">
-                  {dashboardStats.loading ? (
-                    <Activity className="h-5 w-5 animate-pulse" />
-                  ) : (
-                    dashboardStats.totalCampaigns
-                  )}
-                </p>
-              </div>
-            </div>
-          </Card>
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
+            <TabsTrigger value="overview" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="personas" className="gap-2">
+              <UserCircle className="h-4 w-4" />
+              Personas
+            </TabsTrigger>
+            <TabsTrigger value="customers" className="gap-2">
+              <Database className="h-4 w-4" />
+              Customers
+            </TabsTrigger>
+          </TabsList>
 
-          <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-accent/10 rounded-lg">
-                <Users className="h-6 w-6 text-accent" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Leads</p>
-                <p className="text-2xl font-heading font-bold text-foreground">
-                  {dashboardStats.loading ? (
-                    <Activity className="h-5 w-5 animate-pulse" />
-                  ) : (
-                    dashboardStats.totalLeads
-                  )}
-                </p>
-              </div>
-            </div>
-          </Card>
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-primary/10 rounded-lg">
+                    <Mail className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Campaigns Sent</p>
+                    <p className="text-2xl font-heading font-bold text-foreground">
+                      {dashboardStats.loading ? (
+                        <Activity className="h-5 w-5 animate-pulse" />
+                      ) : (
+                        dashboardStats.totalCampaigns
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </Card>
 
-          <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-healthcare-green/10 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-healthcare-green" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Click Rate</p>
-                <p className="text-2xl font-heading font-bold text-foreground">
-                  {dashboardStats.loading ? (
-                    <Activity className="h-5 w-5 animate-pulse" />
-                  ) : (
-                    `${dashboardStats.clickRate}%`
-                  )}
-                </p>
-              </div>
-            </div>
-          </Card>
+              <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-accent/10 rounded-lg">
+                    <Users className="h-6 w-6 text-accent" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Leads</p>
+                    <p className="text-2xl font-heading font-bold text-foreground">
+                      {dashboardStats.loading ? (
+                        <Activity className="h-5 w-5 animate-pulse" />
+                      ) : (
+                        dashboardStats.totalLeads
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </Card>
 
-          <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-healthcare-purple/10 rounded-lg">
-                <BarChart3 className="h-6 w-6 text-healthcare-purple" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Clicks</p>
-                <p className="text-2xl font-heading font-bold text-foreground">
-                  {dashboardStats.loading ? (
-                    <Activity className="h-5 w-5 animate-pulse" />
-                  ) : (
-                    dashboardStats.totalClicks
-                  )}
-                </p>
-              </div>
-            </div>
-          </Card>
-        </div>
+              <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-healthcare-green/10 rounded-lg">
+                    <TrendingUp className="h-6 w-6 text-healthcare-green" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Click Rate</p>
+                    <p className="text-2xl font-heading font-bold text-foreground">
+                      {dashboardStats.loading ? (
+                        <Activity className="h-5 w-5 animate-pulse" />
+                      ) : (
+                        `${dashboardStats.clickRate}%`
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </Card>
 
-        {/* Workflow Status and Recent Leads */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
-          <WorkflowStatus />
-          <RecentLeads />
-        </div>
+              <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-healthcare-purple/10 rounded-lg">
+                    <BarChart3 className="h-6 w-6 text-healthcare-purple" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Clicks</p>
+                    <p className="text-2xl font-heading font-bold text-foreground">
+                      {dashboardStats.loading ? (
+                        <Activity className="h-5 w-5 animate-pulse" />
+                      ) : (
+                        dashboardStats.totalClicks
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
 
-        {/* Setup Instructions */}
-        <Card className="p-8 text-center bg-gradient-card border-2 border-border/50 rounded-2xl">
-          <div className="max-w-3xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-primary text-primary-foreground mb-6 shadow-soft">
-              <BarChart3 className="w-4 h-4" />
-              <span className="text-sm font-semibold">Getting Started</span>
+            {/* Workflow Status and Recent Leads */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <WorkflowStatus />
+              <RecentLeads />
             </div>
-            <h3 className="text-2xl font-heading font-bold text-foreground mb-4">
-              Complete Your Setup
-            </h3>
-            <div className="text-left space-y-4 mb-8">
-              <div className="p-4 bg-background/50 rounded-lg border border-border/50">
-                <h4 className="font-semibold text-foreground mb-2">1. Configure n8n Workflows</h4>
-                <p className="text-sm text-muted-foreground">
-                  Import the workflow JSON files from the <code className="bg-muted px-1 py-0.5 rounded">n8n-workflows</code> directory
-                  into your n8n instance to enable automated campaigns and event tracking.
-                </p>
+
+            {/* Quick Actions */}
+            <Card className="p-8 text-center bg-gradient-card border-2 border-border/50 rounded-2xl">
+              <div className="max-w-3xl mx-auto">
+                <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-primary text-primary-foreground mb-6 shadow-soft">
+                  <BarChart3 className="w-4 h-4" />
+                  <span className="text-sm font-semibold">Quick Actions</span>
+                </div>
+                <h3 className="text-2xl font-heading font-bold text-foreground mb-4">
+                  Get Started with PreventIQ
+                </h3>
+                <div className="flex gap-4 justify-center flex-wrap">
+                  <Button 
+                    variant="outline"
+                    onClick={() => navigate("/")}
+                    className="rounded-full font-semibold"
+                  >
+                    Back to Home
+                  </Button>
+                  <Button 
+                    onClick={() => document.querySelector('[value="personas"]')?.dispatchEvent(new Event('click', { bubbles: true }))}
+                    className="rounded-full font-semibold bg-gradient-button"
+                  >
+                    Manage Personas
+                  </Button>
+                  <Button 
+                    onClick={() => document.querySelector('[value="customers"]')?.dispatchEvent(new Event('click', { bubbles: true }))}
+                    className="rounded-full font-semibold bg-gradient-button"
+                  >
+                    Import Customers
+                  </Button>
+                </div>
               </div>
-              <div className="p-4 bg-background/50 rounded-lg border border-border/50">
-                <h4 className="font-semibold text-foreground mb-2">2. Set Up Brevo Integration</h4>
-                <p className="text-sm text-muted-foreground">
-                  Connect your Brevo account in n8n to enable email sending. See the 
-                  <code className="bg-muted px-1 py-0.5 rounded ml-1">n8n-workflows/CREDENTIALS-SETUP.md</code> file for details.
-                </p>
+            </Card>
+          </TabsContent>
+
+          {/* Personas Tab */}
+          <TabsContent value="personas" className="space-y-6">
+            <Card className="p-6 bg-gradient-card border-2 border-border/50 rounded-xl">
+              <h3 className="text-xl font-heading font-bold text-foreground mb-2">
+                Customer Personas
+              </h3>
+              <p className="text-muted-foreground mb-6">
+                Manage the 6 core customer archetypes used to personalize your marketing campaigns.
+                Click edit to customize descriptions and tone for each persona.
+              </p>
+            </Card>
+
+            {personasLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Activity className="h-8 w-8 animate-pulse text-muted-foreground" />
               </div>
-              <div className="p-4 bg-background/50 rounded-lg border border-border/50">
-                <h4 className="font-semibold text-foreground mb-2">3. Test the Flow</h4>
-                <p className="text-sm text-muted-foreground">
-                  Submit a test lead via the landing page to verify end-to-end functionality.
-                  You should receive a personalized email and be able to track clicks.
-                </p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {personas.map((persona) => (
+                  <PersonaCard
+                    key={persona.id}
+                    persona={persona}
+                    onEdit={handleEditPersona}
+                    leadCount={personaLeadCounts[persona.id] || 0}
+                  />
+                ))}
               </div>
-            </div>
-            <div className="flex gap-4 justify-center">
-              <Button 
-                variant="outline"
-                onClick={() => navigate("/")}
-                className="rounded-full font-semibold"
-              >
-                Back to Home
-              </Button>
-              <Button 
-                onClick={() => window.open('https://docs.n8n.io/', '_blank')}
-                className="rounded-full font-semibold bg-gradient-button"
-              >
-                n8n Documentation
-              </Button>
-            </div>
-          </div>
-        </Card>
+            )}
+          </TabsContent>
+
+          {/* Customers Tab */}
+          <TabsContent value="customers" className="space-y-6">
+            <CustomerImport onImportComplete={handleImportComplete} />
+            <CustomerList key={customerRefreshKey} />
+          </TabsContent>
+        </Tabs>
       </main>
+
+      {/* Persona Editor Dialog */}
+      <PersonaEditor
+        persona={selectedPersona}
+        isOpen={isEditorOpen}
+        onClose={handleEditorClose}
+        onSave={handlePersonaSave}
+      />
     </div>
   );
 };
