@@ -30,22 +30,42 @@ const SignupSection = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('lead-intake', {
-        body: formData
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: "defaultPassword123", // Replace with a secure password generation logic
+        options: {
+          data: {
+            name: formData.name,
+            org_type: formData.org_type,
+            lang: formData.lang,
+            city: formData.city,
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
       });
 
-      if (error) throw error;
+      if (signUpError) throw signUpError;
 
-      console.log('Lead submission successful:', data);
+      // Send welcome email to the marketer using their user_id
+      if (signUpData?.user?.id) {
+        try {
+          await supabase.functions.invoke("send-welcome-email", {
+            body: { user_id: signUpData.user.id }
+          });
+        } catch (emailError) {
+          console.error("Failed to send welcome email:", emailError);
+          // Don't fail signup if email fails
+        }
+      }
+
       toast.success("Welcome to PreventIQ! Check your email for next steps.");
       navigate("/thanks");
     } catch (error: any) {
-      console.error('Error submitting form:', error);
-      
-      // Handle specific error cases
-      if (error.message?.includes('already registered')) {
+      console.error("Error during signup:", error);
+
+      if (error.message?.includes("already registered")) {
         toast.error("This email is already registered");
-      } else if (error.message?.includes('Invalid email')) {
+      } else if (error.message?.includes("Invalid email")) {
         toast.error("Please enter a valid email address");
       } else {
         toast.error("Failed to submit. Please try again.");

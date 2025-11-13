@@ -3,17 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LogOut, BarChart3, Mail, Users, TrendingUp, Activity, UserCircle, Database } from "lucide-react";
+import { LogOut, BarChart3, Mail, Users, TrendingUp, Activity, UserCircle, Database, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { usePersonas } from "@/hooks/usePersonas";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import WorkflowStatus from "@/components/WorkflowStatus";
 import RecentLeads from "@/components/RecentLeads";
+import WelcomeGuide from "@/components/WelcomeGuide";
 import { PersonaCard } from "@/components/PersonaCard";
 import { PersonaEditor } from "@/components/PersonaEditor";
 import { CustomerImport } from "@/components/CustomerImport";
 import { CustomerList } from "@/components/CustomerList";
+import { UserProfileCard } from "@/components/UserProfileCard";
+import { WorkflowTriggers } from "@/components/WorkflowTriggers";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -21,6 +25,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const dashboardStats = useDashboardData();
   const { personas, loading: personasLoading, refetch: refetchPersonas } = usePersonas();
+  const { profile } = useUserProfile();
   const [selectedPersona, setSelectedPersona] = useState<{
     id: string;
     label: string;
@@ -57,29 +62,29 @@ const Dashboard = () => {
   }, [navigate]);
 
   // Fetch lead counts per persona
+  const fetchPersonaLeadCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('assignments')
+        .select('persona_id');
+
+      if (error) throw error;
+
+      const counts: Record<string, number> = {};
+      data?.forEach((assignment) => {
+        const personaId = assignment.persona_id;
+        if (personaId) {
+          counts[personaId] = (counts[personaId] || 0) + 1;
+        }
+      });
+
+      setPersonaLeadCounts(counts);
+    } catch (error) {
+      console.error("Error fetching persona lead counts:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchPersonaLeadCounts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('assignments')
-          .select('persona_id');
-
-        if (error) throw error;
-
-        const counts: Record<string, number> = {};
-        data?.forEach((assignment) => {
-          const personaId = assignment.persona_id;
-          if (personaId) {
-            counts[personaId] = (counts[personaId] || 0) + 1;
-          }
-        });
-
-        setPersonaLeadCounts(counts);
-      } catch (error) {
-        console.error("Error fetching persona lead counts:", error);
-      }
-    };
-
     fetchPersonaLeadCounts();
   }, []);
 
@@ -99,6 +104,14 @@ const Dashboard = () => {
 
   const handleImportComplete = () => {
     setCustomerRefreshKey(prev => prev + 1);
+    // Also refresh persona counts and dashboard stats
+    fetchPersonaLeadCounts();
+  };
+
+  const handleWorkflowTriggerComplete = () => {
+    // Refresh all data after workflow trigger
+    setCustomerRefreshKey(prev => prev + 1);
+    fetchPersonaLeadCounts();
   };
 
   const handleLogout = async () => {
@@ -152,7 +165,7 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-8">
+          <TabsList className="grid w-full grid-cols-4 mb-8">
             <TabsTrigger value="overview" className="gap-2">
               <BarChart3 className="h-4 w-4" />
               Overview
@@ -165,10 +178,42 @@ const Dashboard = () => {
               <Database className="h-4 w-4" />
               Customers
             </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Settings className="h-4 w-4" />
+              Settings
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            {/* Show Welcome Guide if no data exists */}
+            {!dashboardStats.loading && 
+             dashboardStats.totalLeads === 0 && 
+             dashboardStats.totalCampaigns === 0 && (
+              <WelcomeGuide 
+                hasError={!!dashboardStats.error}
+                errorMessage={dashboardStats.error || undefined}
+                onNavigateToPersonas={() => {
+                  const personasTab = document.querySelector('[value="personas"]');
+                  if (personasTab instanceof HTMLElement) {
+                    personasTab.click();
+                  }
+                }}
+                onNavigateToCustomers={() => {
+                  const customersTab = document.querySelector('[value="customers"]');
+                  if (customersTab instanceof HTMLElement) {
+                    customersTab.click();
+                  }
+                }}
+                onNavigateToSettings={() => {
+                  const settingsTab = document.querySelector('[value="settings"]');
+                  if (settingsTab instanceof HTMLElement) {
+                    settingsTab.click();
+                  }
+                }}
+              />
+            )}
+
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <Card className="p-6 bg-card border-2 border-border/50 rounded-xl hover:border-primary/30 transition-all">
@@ -319,6 +364,14 @@ const Dashboard = () => {
           <TabsContent value="customers" className="space-y-6">
             <CustomerImport onImportComplete={handleImportComplete} />
             <CustomerList key={customerRefreshKey} />
+          </TabsContent>
+
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <UserProfileCard />
+              <WorkflowTriggers onTriggerComplete={handleWorkflowTriggerComplete} />
+            </div>
           </TabsContent>
         </Tabs>
       </main>

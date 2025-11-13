@@ -13,13 +13,22 @@ const Login = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+    org_type: "",
+    lang: "en",
+    city: "",
+    agree: false,
+  });
 
   useEffect(() => {
     // Check if user is already logged in
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (session) {
         navigate("/dashboard");
       }
@@ -27,7 +36,9 @@ const Login = () => {
     checkAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         navigate("/dashboard");
       }
@@ -38,14 +49,21 @@ const Login = () => {
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      toast.error("Please fill in all fields");
+
+    if (
+      !formData.name ||
+      !formData.email ||
+      !formData.password ||
+      !formData.org_type ||
+      !formData.city ||
+      !formData.agree
+    ) {
+      toast.error("Please fill in all fields and agree to the terms.");
       return;
     }
 
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    if (formData.password.length < 6) {
+      toast.error("Password must be at least 6 characters.");
       return;
     }
 
@@ -53,33 +71,51 @@ const Login = () => {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`
-          }
+            data: {
+              name: formData.name,
+              org_type: formData.org_type,
+              lang: formData.lang,
+              city: formData.city,
+            },
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+          },
         });
 
-        if (error) throw error;
+        if (signUpError) throw signUpError;
 
-        analytics.trackLogin('signup', true);
+        // Send welcome email to the marketer using their user_id
+        if (signUpData?.user?.id) {
+          try {
+            await supabase.functions.invoke("send-welcome-email", {
+              body: { user_id: signUpData.user.id }
+            });
+          } catch (emailError) {
+            console.error("Failed to send welcome email:", emailError);
+            // Don't fail signup if email fails
+          }
+        }
+
+        analytics.trackLogin("signup", true);
         toast.success("Account created! Please check your email to confirm.");
         setIsSignUp(false);
       } else {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+          email: formData.email,
+          password: formData.password,
         });
 
         if (error) throw error;
 
-        analytics.trackLogin('signin', true);
+        analytics.trackLogin("signin", true);
         toast.success("Welcome back!");
       }
     } catch (error: any) {
       console.error("Auth error:", error);
-      analytics.trackLogin(isSignUp ? 'signup' : 'signin', false);
+      analytics.trackLogin(isSignUp ? "signup" : "signin", false);
       toast.error(error.message || "Authentication failed. Please try again.");
     } finally {
       setLoading(false);
@@ -117,6 +153,84 @@ const Login = () => {
           </div>
 
           <form onSubmit={handleAuth} className="space-y-6">
+            {isSignUp && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name *</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="Your name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="h-12 border-2 rounded-lg"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="org_type">Organisation Type *</Label>
+                  <select
+                    id="org_type"
+                    value={formData.org_type}
+                    onChange={(e) => setFormData({ ...formData, org_type: e.target.value })}
+                    className="w-full h-12 px-3 rounded-md border-2"
+                    required
+                  >
+                    <option value="">Select type</option>
+                    <option value="Clinic">Clinic</option>
+                    <option value="PHC">PHC</option>
+                    <option value="Diagnostics">Diagnostics</option>
+                    <option value="Campus/HR">Campus/HR</option>
+                    <option value="Hospital">Hospital</option>
+                    <option value="Wellness Center">Wellness Center</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="lang">Preferred Language *</Label>
+                  <select
+                    id="lang"
+                    value={formData.lang}
+                    onChange={(e) => setFormData({ ...formData, lang: e.target.value })}
+                    className="w-full h-12 px-3 rounded-md border-2"
+                    required
+                  >
+                    <option value="en">English</option>
+                    <option value="hi">Hindi</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="city">City *</Label>
+                  <Input
+                    id="city"
+                    type="text"
+                    placeholder="Your city"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="h-12 border-2 rounded-lg"
+                    required
+                  />
+                </div>
+
+                <div className="flex items-start space-x-2">
+                  <input
+                    type="checkbox"
+                    id="agree"
+                    checked={formData.agree}
+                    onChange={(e) => setFormData({ ...formData, agree: e.target.checked })}
+                    className="w-5 h-5 border-2 rounded"
+                    required
+                  />
+                  <Label htmlFor="agree" className="text-sm">
+                    I agree to receive one preventive message and one survey. We respect your privacy and you can unsubscribe anytime.
+                  </Label>
+                </div>
+              </>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-semibold">
                 Email Address
@@ -127,8 +241,8 @@ const Login = () => {
                   id="email"
                   type="email"
                   placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="pl-10 h-12 border-2 rounded-lg"
                   disabled={loading}
                   required
@@ -146,8 +260,8 @@ const Login = () => {
                   id="password"
                   type="password"
                   placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="pl-10 h-12 border-2 rounded-lg"
                   disabled={loading}
                   required

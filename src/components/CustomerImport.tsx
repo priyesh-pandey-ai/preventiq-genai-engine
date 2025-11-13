@@ -8,6 +8,7 @@ import { Upload, Plus, FileSpreadsheet } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useUserProfile } from "@/hooks/useUserProfile";
 
 interface CustomerImportProps {
   onImportComplete: () => void;
@@ -15,21 +16,25 @@ interface CustomerImportProps {
 
 export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
   const [importing, setImporting] = useState(false);
+  const { profile } = useUserProfile();
   
   // Manual form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [city, setCity] = useState("");
-  const [orgType, setOrgType] = useState("");
   const [lang, setLang] = useState("en");
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !email || !city || !orgType) {
+    if (!name || !email || !city) {
       toast.error("Please fill all required fields");
       return;
     }
+
+    // Use user's org_type from profile, or default city if not available
+    const orgType = profile?.org_type || "Other";
+    const customerCity = city || profile?.city || "";
 
     setImporting(true);
     try {
@@ -38,7 +43,7 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
         .insert({
           name,
           email,
-          city,
+          city: customerCity,
           org_type: orgType,
           lang,
           is_test: false,
@@ -57,7 +62,6 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
         setName("");
         setEmail("");
         setCity("");
-        setOrgType("");
         setLang("en");
         onImportComplete();
       }
@@ -78,14 +82,17 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
       return;
     }
 
+    // Use user's org_type from profile
+    const userOrgType = profile?.org_type || "Other";
+
     setImporting(true);
     try {
       const text = await file.text();
       const lines = text.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
       
-      // Validate headers
-      const requiredHeaders = ['name', 'email', 'city', 'org_type'];
+      // Validate headers - org_type is now optional
+      const requiredHeaders = ['name', 'email', 'city'];
       const hasRequiredHeaders = requiredHeaders.every(h => headers.includes(h));
       
       if (!hasRequiredHeaders) {
@@ -107,12 +114,12 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
           customer[header] = values[index];
         });
         
-        if (customer.name && customer.email && customer.city && customer.org_type) {
+        if (customer.name && customer.email && customer.city) {
           customers.push({
             name: customer.name,
             email: customer.email,
             city: customer.city,
-            org_type: customer.org_type,
+            org_type: customer.org_type || userOrgType, // Use user's org_type if not in CSV
             lang: customer.lang || 'en',
             is_test: false,
             consent: true,
@@ -150,9 +157,17 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
 
   return (
     <Card className="p-6 bg-card border-2 border-border/50 rounded-xl">
-      <h3 className="text-xl font-heading font-bold text-foreground mb-4">
-        Import Customer Data
-      </h3>
+      <div className="mb-4">
+        <h3 className="text-xl font-heading font-bold text-foreground">
+          Import Customer Data
+        </h3>
+        {profile?.org_type && (
+          <p className="text-sm text-muted-foreground mt-1">
+            Customers will be added to your organization: <span className="font-semibold">{profile.org_type}</span>
+            {profile.city && ` (${profile.city})`}
+          </p>
+        )}
+      </div>
       
       <Tabs defaultValue="manual" className="w-full">
         <TabsList className="grid w-full grid-cols-2">
@@ -170,7 +185,7 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
           <form onSubmit={handleManualSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
+                <Label htmlFor="name">Customer Name *</Label>
                 <Input
                   id="name"
                   value={name}
@@ -198,30 +213,13 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
                   id="city"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
-                  placeholder="Mumbai"
+                  placeholder={profile?.city || "Mumbai"}
                   required
                 />
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="orgType">Organization Type *</Label>
-                <Select value={orgType} onValueChange={setOrgType} required>
-                  <SelectTrigger id="orgType">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Clinic">Clinic</SelectItem>
-                    <SelectItem value="Diagnostic Center">Diagnostic Center</SelectItem>
-                    <SelectItem value="Hospital">Hospital</SelectItem>
-                    <SelectItem value="Wellness Center">Wellness Center</SelectItem>
-                    <SelectItem value="Pharmacy">Pharmacy</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="lang">Language</Label>
+                <Label htmlFor="lang">Preferred Language</Label>
                 <Select value={lang} onValueChange={setLang}>
                   <SelectTrigger id="lang">
                     <SelectValue />
@@ -245,7 +243,8 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
             <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h4 className="font-semibold text-foreground mb-2">Upload CSV File</h4>
             <p className="text-sm text-muted-foreground mb-4">
-              CSV should contain columns: name, email, city, org_type, lang (optional)
+              CSV should contain columns: name, email, city, lang (optional)
+              {profile?.org_type && <><br/>Organization type will be set to: <span className="font-semibold">{profile.org_type}</span></>}
             </p>
             <Input
               type="file"
@@ -259,9 +258,9 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
           <div className="bg-muted/50 rounded-lg p-4">
             <h5 className="font-semibold text-sm mb-2">CSV Format Example:</h5>
             <pre className="text-xs bg-background p-3 rounded overflow-x-auto">
-{`name,email,city,org_type,lang
-John Doe,john@example.com,Mumbai,Clinic,en
-Jane Smith,jane@example.com,Delhi,Hospital,hi`}
+{`name,email,city,lang
+John Doe,john@example.com,Mumbai,en
+Jane Smith,jane@example.com,Delhi,hi`}
             </pre>
           </div>
         </TabsContent>
