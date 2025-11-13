@@ -2,9 +2,27 @@
 
 This folder contains n8n workflow JSON files for automating PreventIQ's email campaigns using Thompson Sampling bandit algorithm and weekly performance reports.
 
+## ⚠️ IMPORTANT: Workflow Duplication Issue
+
+**The original `flow-c-campaign-send.json` has DUPLICATE email sending logic!**
+
+Since the `campaign-send` edge function now handles everything (creating assignments, sending emails via Brevo, updating status), the n8n workflow nodes for "Record Assignment", "Send Email via Brevo", and "Log Email Sent" are **redundant and cause duplicate emails**.
+
+### Recommended Action:
+
+**Use `flow-c-campaign-send-simplified.json`** instead of the original workflow.
+
+The simplified workflow:
+1. Triggers (Schedule or Webhook)
+2. Calls `campaign-send` edge function
+3. Displays results
+4. **NO duplicate email sending**
+
 ## Files
 
-- **flow-c-campaign-send.json** - Daily campaign automation (runs at 9 AM daily)
+- **flow-c-campaign-send-simplified.json** - ✅ **RECOMMENDED** - Simplified daily campaign (no duplication)
+- **flow-c-campaign-send.json** - ❌ **DO NOT USE** - Original workflow with duplicate email sending
+- **flow-sync-events.json** - Sync email events from Brevo
 - **flow-f-report-generation.json** - Weekly report generation (runs at 10 AM every Monday)
 
 ## Prerequisites
