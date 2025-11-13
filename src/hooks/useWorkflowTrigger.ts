@@ -108,10 +108,32 @@ export const useWorkflowTrigger = () => {
     }
   };
 
+  const triggerFetchEvents = async () => {
+    setTriggering(true);
+    try {
+      // Call the fetch-events workflow
+      const { data, error } = await supabase.functions.invoke("fetch-events", {
+        body: {},
+      });
+
+      if (error) throw error;
+
+      toast.success("Events fetched successfully!");
+      return { success: true };
+    } catch (error) {
+      console.error("Error triggering fetch-events workflow:", error);
+      toast.error("Failed to fetch events. Please try again.");
+      return { success: false };
+    } finally {
+      setTriggering(false);
+    }
+  };
+
   return {
     triggering,
     triggerCampaignSend,
     triggerClassifyPersona,
     triggerGenerateReport,
+    triggerFetchEvents,
   };
 };

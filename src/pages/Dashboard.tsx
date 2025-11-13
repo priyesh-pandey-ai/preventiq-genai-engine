@@ -23,7 +23,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const dashboardStats = useDashboardData();
+  const { fetchDashboardData, dashboardStats } = useDashboardData();
   const { personas, loading: personasLoading, refetch: refetchPersonas } = usePersonas();
   const { profile } = useUserProfile();
   const [selectedPersona, setSelectedPersona] = useState<{
@@ -36,6 +36,7 @@ const Dashboard = () => {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [personaLeadCounts, setPersonaLeadCounts] = useState<Record<string, number>>({});
   const [customerRefreshKey, setCustomerRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -109,9 +110,9 @@ const Dashboard = () => {
   };
 
   const handleWorkflowTriggerComplete = () => {
-    // Refresh all data after workflow trigger
-    setCustomerRefreshKey(prev => prev + 1);
-    fetchPersonaLeadCounts();
+    // Refresh dashboard data after workflow trigger
+    setRefreshKey((prev) => prev + 1);
+    fetchDashboardData();
   };
 
   const handleLogout = async () => {

@@ -8,7 +8,7 @@ interface WorkflowTriggersProps {
 }
 
 export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) => {
-  const { triggering, triggerCampaignSend, triggerGenerateReport } = useWorkflowTrigger();
+  const { triggering, triggerCampaignSend, triggerGenerateReport, triggerFetchEvents } = useWorkflowTrigger();
 
   const handleCampaignSend = async () => {
     const result = await triggerCampaignSend();
@@ -19,6 +19,13 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
 
   const handleGenerateReport = async () => {
     const result = await triggerGenerateReport();
+    if (result.success && onTriggerComplete) {
+      onTriggerComplete();
+    }
+  };
+
+  const handleFetchEvents = async () => {
+    const result = await triggerFetchEvents();
     if (result.success && onTriggerComplete) {
       onTriggerComplete();
     }
@@ -105,6 +112,39 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
                   <>
                     <PlayCircle className="h-4 w-4" />
                     Generate Report
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Fetch Events Button */}
+        <div className="p-4 bg-background/50 rounded-lg border border-border/50">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <RefreshCw className="h-4 w-4 text-healthcare-blue" />
+                <h4 className="font-semibold text-foreground">Fetch Events</h4>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">
+                Trigger the `fetch-events` workflow to sync email events and update the dashboard.
+              </p>
+              <Button
+                onClick={handleFetchEvents}
+                disabled={triggering}
+                size="sm"
+                className="gap-2"
+              >
+                {triggering ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Fetching...
+                  </>
+                ) : (
+                  <>
+                    <PlayCircle className="h-4 w-4" />
+                    Fetch Events
                   </>
                 )}
               </Button>
