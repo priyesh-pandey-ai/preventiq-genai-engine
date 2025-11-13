@@ -201,7 +201,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, status, send_at, sent_at) VALUES ({{ $('Split Campaigns').item.json.lead_id }}, '{{ $('Split Campaigns').item.json.persona_id }}', '{{ $('Split Campaigns').item.json.variant_id }}', 'sent', NOW(), NOW()) RETURNING id",
+        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, corr_id, status, send_at, sent_at) VALUES ({{ $('Split Campaigns').item.json.lead_id }}, '{{ $('Split Campaigns').item.json.persona_id }}', '{{ $('Split Campaigns').item.json.variant_id }}', '{{ $('Send Email via Brevo').item.json.messageId }}', 'sent', NOW(), NOW()) RETURNING id",
         "options": {}
       },
       "id": "record-assignment",
@@ -222,7 +222,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO events (assignment_id, type, meta, ts) VALUES ({{ $json.id }}, 'sent', jsonb_build_object('email_address', '{{ $('Split Campaigns').item.json.lead_email }}', 'subject_line', '{{ $('Split Campaigns').item.json.subject }}', 'brevo_message_id', '{{ $('Send Email via Brevo').item.json.messageId }}', 'variant_id', '{{ $('Split Campaigns').item.json.variant_id }}'), NOW()) ON CONFLICT (assignment_id, type) DO UPDATE SET meta = EXCLUDED.meta, ts = EXCLUDED.ts",
+        "query": "=INSERT INTO events (assignment_id, type, meta, ts) VALUES ({{ $json.id }}, 'sent', jsonb_build_object('email', '{{ $('Split Campaigns').item.json.lead_email }}', 'subject', '{{ $('Split Campaigns').item.json.subject }}', 'message_id', '{{ $('Send Email via Brevo').item.json.messageId }}', 'variant_id', '{{ $('Split Campaigns').item.json.variant_id }}', 'from', 'p24priyesh@gmail.com'), NOW()) ON CONFLICT (assignment_id, type) DO UPDATE SET meta = EXCLUDED.meta, ts = EXCLUDED.ts",
         "options": {}
       },
       "id": "log-email",
