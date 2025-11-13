@@ -42,7 +42,7 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
       // Get all leads without persona_id
       const { data: leads, error: leadsError } = await supabase
         .from('leads')
-        .select('id, city, org_type, age, lang')
+        .select('id, city, org_type, age, lang, name, email')
         .is('persona_id', null)
         .limit(20);
 
@@ -54,8 +54,10 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
       }
 
       let classified = 0;
+      let enriched = 0;
       for (const lead of leads) {
         try {
+          // Step 1: Classify persona
           const { data, error } = await supabase.functions.invoke('classify-persona', {
             body: {
               lead_id: lead.id,
@@ -75,13 +77,34 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
             .eq('id', lead.id);
 
           classified++;
+
+          // Step 2: Generate AI insights for the lead
+          try {
+            const enrichResult = await supabase.functions.invoke('enrich-lead', {
+              body: {
+                lead_id: lead.id,
+                name: lead.name,
+                email: lead.email,
+                city: lead.city,
+                org_type: lead.org_type,
+                age: lead.age,
+                persona_id: data.archetype
+              }
+            });
+
+            if (!enrichResult.error) {
+              enriched++;
+            }
+          } catch (enrichError) {
+            console.error(`Error enriching lead ${lead.id}:`, enrichError);
+          }
         } catch (error) {
           console.error(`Error classifying lead ${lead.id}:`, error);
         }
       }
 
-      toast.success(`Classified ${classified} of ${leads.length} leads`, {
-        description: "AI-powered persona assignment complete"
+      toast.success(`Processed ${classified} leads`, {
+        description: `Classified ${classified} personas and generated ${enriched} AI insights`
       });
 
       if (onTriggerComplete) {
@@ -181,8 +204,8 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
                 </h4>
               </div>
               <p className="text-sm text-muted-foreground mb-3">
-                Use AI to automatically classify all leads without persona assignments.
-                Processes up to 20 leads using Azure OpenAI.
+                Use AI to automatically classify all leads without persona assignments and generate AI insights.
+                Processes up to 20 leads using Azure OpenAI (persona + enrichment).
               </p>
               <Button
                 onClick={handleClassifyAllLeads}
