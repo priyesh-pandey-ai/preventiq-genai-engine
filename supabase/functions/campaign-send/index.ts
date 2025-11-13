@@ -71,20 +71,36 @@ Deno.serve(async (req) => {
 
     console.log('Starting campaign send process...');
 
+    // Get optional lead_ids from request body
+    const requestBody = req.headers.get('content-type')?.includes('application/json') 
+      ? await req.json() 
+      : {};
+    const specificLeadIds = requestBody.lead_ids;
+
     // Step 1: Get leads to process (not emailed in last 24 hours or never emailed)
-    const { data: leadsToEmail, error: leadsError } = await supabase
+    let query = supabase
       .from('leads')
       .select('id, name, email, city, org_type, lang, age, persona_id')
-      .is('is_test', false)
-      .or('last_email_sent_at.is.null,last_email_sent_at.lt.' + new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-      .limit(10); // Process max 10 leads per run (with 7s delay = ~70s total)
+      .is('is_test', false);
+
+    if (specificLeadIds && specificLeadIds.length > 0) {
+      // Process specific leads if provided
+      query = query.in('id', specificLeadIds);
+    } else {
+      // Default: process leads not emailed in 24h
+      query = query
+        .or('last_email_sent_at.is.null,last_email_sent_at.lt.' + new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .limit(10); // Process max 10 leads per run (with 7s delay = ~70s total)
+    }
+
+    const { data: leadsToEmail, error: leadsError } = await query;
 
     if (leadsError) throw leadsError;
 
     if (!leadsToEmail || leadsToEmail.length === 0) {
       console.log('No leads found to email');
       return new Response(
-        JSON.stringify({ message: 'No leads to process', processed: 0 }),
+        JSON.stringify({ message: 'No leads to process', processed: 0, campaigns: [] }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

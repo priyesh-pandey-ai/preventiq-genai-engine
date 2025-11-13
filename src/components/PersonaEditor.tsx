@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,10 +21,19 @@ interface PersonaEditorProps {
 }
 
 export const PersonaEditor = ({ persona, isOpen, onClose, onSave }: PersonaEditorProps) => {
-  const [label, setLabel] = useState(persona?.label || "");
-  const [description, setDescription] = useState(persona?.description || "");
-  const [toneDefaults, setToneDefaults] = useState(persona?.tone_defaults?.join(", ") || "");
+  const [label, setLabel] = useState("");
+  const [description, setDescription] = useState("");
+  const [toneDefaults, setToneDefaults] = useState("");
   const [saving, setSaving] = useState(false);
+
+  // Update form values when persona changes
+  useEffect(() => {
+    if (persona) {
+      setLabel(persona.label || "");
+      setDescription(persona.description || "");
+      setToneDefaults(persona.tone_defaults?.join(", ") || "");
+    }
+  }, [persona]);
 
   const handleSave = async () => {
     if (!persona) return;

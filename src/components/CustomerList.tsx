@@ -25,6 +25,13 @@ interface Customer {
   persona_id?: string;
   persona_label?: string;
   age?: number;
+  last_email_sent_at?: string;
+  ai_insights?: {
+    engagement_level?: string;
+    conversion_likelihood?: string;
+    messaging_strategy?: string;
+    best_send_time?: string;
+  };
 }
 
 interface Persona {
@@ -53,6 +60,7 @@ export const CustomerList = () => {
           created_at, 
           persona_id,
           age,
+          last_email_sent_at,
           personas(label)
         `)
         .order('created_at', { ascending: false })
@@ -179,6 +187,13 @@ export const CustomerList = () => {
 
       if (error) throw error;
 
+      // Store insights in customer state for display
+      setCustomers(prev => prev.map(c => 
+        c.id === leadId 
+          ? { ...c, ai_insights: data.insights }
+          : c
+      ));
+
       toast.success("Lead enriched with AI insights", {
         description: `Conversion: ${data.insights.conversion_likelihood}, Engagement: ${data.insights.engagement_level}`
       });
@@ -204,23 +219,35 @@ export const CustomerList = () => {
         return;
       }
 
-      // This would trigger a single-lead campaign
-      toast.info("Campaign queued", {
-        description: "Email will be sent shortly through the campaign workflow"
+      // Trigger campaign-send with specific lead
+      const { data, error } = await supabase.functions.invoke('campaign-send', {
+        body: { 
+          lead_ids: [leadId] // Pass specific lead ID
+        }
       });
 
+      if (error) throw error;
+
+      if (data && data.campaigns && data.campaigns.length > 0) {
+        toast.success("Email sent successfully", {
+          description: `Campaign email queued for ${lead.name}`
+        });
+      } else {
+        toast.info("Email scheduled", {
+          description: "Email will be processed in the next campaign run"
+        });
+      }
+
       // Update last_email_sent_at
-      const { error } = await supabase
+      await supabase
         .from('leads')
         .update({ last_email_sent_at: new Date().toISOString() })
         .eq('id', leadId);
 
-      if (error) throw error;
-
       fetchCustomers();
     } catch (error: any) {
-      console.error("Error queuing email:", error);
-      toast.error("Failed to queue email", {
+      console.error("Error sending email:", error);
+      toast.error("Failed to send email", {
         description: error.message
       });
     } finally {
@@ -325,6 +352,53 @@ export const CustomerList = () => {
                   <span>{customer.org_type}</span>
                 </div>
               </div>
+
+              {/* Email Status & AI Insights */}
+              {(customer.last_email_sent_at || customer.ai_insights) && (
+                <div className="mb-3 p-3 bg-muted/30 rounded-lg border border-border/30">
+                  {customer.last_email_sent_at && (
+                    <div className="flex items-center gap-2 text-xs mb-2">
+                      <Badge variant="secondary" className="bg-green-500/10 text-green-700 border-green-500/30">
+                        <Mail className="h-3 w-3 mr-1" />
+                        Email Sent
+                      </Badge>
+                      <span className="text-muted-foreground">
+                        {new Date(customer.last_email_sent_at).toLocaleDateString()} at{' '}
+                        {new Date(customer.last_email_sent_at).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {customer.ai_insights && (
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 text-xs">
+                        <Sparkles className="h-3 w-3 text-purple-500" />
+                        <span className="font-semibold text-foreground">AI Insights:</span>
+                      </div>
+                      {customer.ai_insights.conversion_likelihood && (
+                        <div className="text-xs text-muted-foreground ml-5">
+                          <span className="font-medium">Conversion:</span> {customer.ai_insights.conversion_likelihood}
+                        </div>
+                      )}
+                      {customer.ai_insights.engagement_level && (
+                        <div className="text-xs text-muted-foreground ml-5">
+                          <span className="font-medium">Engagement:</span> {customer.ai_insights.engagement_level}
+                        </div>
+                      )}
+                      {customer.ai_insights.messaging_strategy && (
+                        <div className="text-xs text-muted-foreground ml-5">
+                          <span className="font-medium">Strategy:</span> {customer.ai_insights.messaging_strategy}
+                        </div>
+                      )}
+                      {customer.ai_insights.best_send_time && (
+                        <div className="text-xs text-muted-foreground ml-5">
+                          <span className="font-medium">Best Time:</span> {customer.ai_insights.best_send_time}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Action Buttons */}
               <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/50">
