@@ -132,67 +132,6 @@ export const useDashboardData = () => {
     };
   }, []);
 
-  const fetchDashboardData = async () => {
-    try {
-      setStats(prev => ({ ...prev, loading: true, error: null }));
-
-      // Fetch total leads
-      const { count: leadsCount, error: leadsError } = await supabase
-        .from('leads')
-        .select('*', { count: 'exact', head: true });
-
-      if (leadsError) {
-        console.error('Error fetching leads:', leadsError);
-        throw new Error(`Failed to fetch leads: ${leadsError.message}`);
-      }
-
-      // Fetch total campaigns (assignments)
-      const { count: campaignsCount, error: campaignsError } = await supabase
-        .from('assignments')
-        .select('*', { count: 'exact', head: true });
-
-      if (campaignsError) {
-        console.error('Error fetching campaigns:', campaignsError);
-        throw new Error(`Failed to fetch campaigns: ${campaignsError.message}`);
-      }
-
-      // Fetch total clicks
-      const { count: clicksCount, error: clicksError } = await supabase
-        .from('events')
-        .select('*', { count: 'exact', head: true })
-        .eq('type', 'click');
-
-      if (clicksError) {
-        console.error('Error fetching events:', clicksError);
-        throw new Error(`Failed to fetch events: ${clicksError.message}`);
-      }
-
-      const totalLeads = leadsCount || 0;
-      const totalCampaigns = campaignsCount || 0;
-      const totalClicks = clicksCount || 0;
-      const clickRate = totalCampaigns > 0 
-        ? Math.round((totalClicks / totalCampaigns) * 100) 
-        : 0;
-
-      setStats({
-        totalLeads,
-        totalCampaigns,
-        totalClicks,
-        clickRate,
-        loading: false,
-        error: null,
-      });
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load dashboard data. Please check your connection and try refreshing the page.';
-      setStats(prev => ({
-        ...prev,
-        loading: false,
-        error: errorMessage,
-      }));
-    }
-  };
-
   return {
     dashboardStats: stats,
     fetchDashboardData,
