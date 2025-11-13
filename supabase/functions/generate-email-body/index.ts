@@ -136,6 +136,15 @@ Return ONLY a JSON object with these keys:
         cleanContent = jsonMatch[0];
       }
       
+      // Fix control characters in JSON (newlines, tabs, etc.)
+      cleanContent = cleanContent
+        .replace(/\\n/g, ' ')  // Replace escaped newlines with space
+        .replace(/\\t/g, ' ')  // Replace escaped tabs with space
+        .replace(/\n/g, ' ')   // Replace literal newlines with space
+        .replace(/\t/g, ' ')   // Replace literal tabs with space
+        .replace(/\s+/g, ' ')  // Collapse multiple spaces
+        .trim();
+      
       parsedContent = JSON.parse(cleanContent);
       
       // Validate required fields

@@ -148,6 +148,19 @@ Return ONLY a JSON object:
 
     console.log('Lead enrichment completed successfully');
 
+    // Store AI insights in leads table for persistence
+    const { error: updateError } = await supabase
+      .from('leads')
+      .update({ ai_insights: insights })
+      .eq('id', lead_id);
+    
+    if (updateError) {
+      console.error('Error storing AI insights:', updateError);
+      // Don't fail the request if storage fails
+    } else {
+      console.log(`AI insights stored in database for lead ${lead_id}`);
+    }
+
     return new Response(
       JSON.stringify({
         lead_id,

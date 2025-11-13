@@ -61,6 +61,7 @@ export const CustomerList = () => {
           persona_id,
           age,
           last_email_sent_at,
+          ai_insights,
           personas(label)
         `)
         .order('created_at', { ascending: false })
@@ -187,14 +188,10 @@ export const CustomerList = () => {
 
       if (error) throw error;
 
-      // Store insights in customer state for display
-      setCustomers(prev => prev.map(c => 
-        c.id === leadId 
-          ? { ...c, ai_insights: data.insights }
-          : c
-      ));
+      // Refresh customer list to get updated ai_insights from database
+      await fetchCustomers();
 
-      toast.success("Lead enriched with AI insights", {
+      toast.success("Lead enriched with AI insights (saved to database)", {
         description: `Conversion: ${data.insights.conversion_likelihood}, Engagement: ${data.insights.engagement_level}`
       });
     } catch (error: any) {
