@@ -137,7 +137,7 @@ This folder contains n8n workflow JSON files for automating PreventIQ's email ca
    - Updates leads table with `persona_id` and `last_email_sent_at`
    - Calls `generate-subjects` (Azure OpenAI) to create 3 AI-generated subject line variants per persona/language if none exist
    - Uses Thompson Sampling algorithm to select the best-performing variant
-   - **NEW**: Calls `generate-email-body` (Google Gemini 2.0) to create unique, personalized email content for each lead
+   - **NEW**: Calls `generate-email-body` (Azure OpenAI Grok-3) to create unique, personalized email content for each lead
    - Returns campaign data with AI-generated content to n8n
 4. n8n workflow:
    - Splits the campaigns array into individual items
@@ -151,7 +151,7 @@ This folder contains n8n workflow JSON files for automating PreventIQ's email ca
   * Understands nuanced signals in city, organization type, and demographics
   * Provides explainable AI decisions
   * More accurate than deterministic rules for edge cases
-- **AI-Generated Email Content**: Google Gemini creates unique, personalized emails for each lead
+- **AI-Generated Email Content**: Azure OpenAI creates unique, personalized emails for each lead
   * Every email is fresh and engaging (no template fatigue)
   * Tailored to persona psychology and motivations
   * 2-3 short paragraphs with emotional connection

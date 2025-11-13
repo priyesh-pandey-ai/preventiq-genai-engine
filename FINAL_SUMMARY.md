@@ -14,7 +14,7 @@ Successfully transformed PreventIQ into a comprehensive AI-first marketing autom
 
 ### 1. AI-Generated Email Body Content
 **File**: `supabase/functions/generate-email-body/index.ts`  
-**AI Model**: Google Gemini 2.0 Flash Exp  
+**AI Model**: Azure OpenAI (Grok-3)  
 **Impact**: Every email is uniquely generated, no template fatigue
 
 **Capabilities**:
@@ -26,7 +26,7 @@ Successfully transformed PreventIQ into a comprehensive AI-first marketing autom
 
 ### 2. AI-Powered Lead Enrichment
 **File**: `supabase/functions/enrich-lead/index.ts`  
-**AI Model**: Google Gemini 2.0 Flash Exp  
+**AI Model**: Azure OpenAI (Grok-3)  
 **Impact**: Individual lead-level predictive analytics
 
 **Capabilities**:
@@ -66,8 +66,8 @@ Successfully transformed PreventIQ into a comprehensive AI-first marketing autom
 |-----------|----------|----------|---------|
 | Persona Classification | Grok-3 | Azure OpenAI | Behavioral analysis |
 | Subject Line Generation | Grok-3 | Azure OpenAI | Creative copywriting |
-| **Email Body Generation** | **Gemini 2.0 Flash** | **Google** | **Unique content creation** |
-| **Lead Enrichment** | **Gemini 2.0 Flash** | **Google** | **Predictive analytics** |
+| **Email Body Generation** | **Grok-3** | **Azure OpenAI** | **Unique content creation** |
+| **Lead Enrichment** | **Grok-3** | **Azure OpenAI** | **Predictive analytics** |
 | **Campaign Optimization** | **Grok-3** | **Azure OpenAI** | **Strategic insights** |
 | Weekly Reports | Grok-3 | Azure OpenAI | Performance analysis |
 
@@ -102,7 +102,7 @@ Successfully transformed PreventIQ into a comprehensive AI-first marketing autom
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│  🤖 AI: enrich-lead (Google Gemini 2.0)                     │
+│  🤖 AI: enrich-lead (Azure OpenAI Grok-3)                     │
 │  Predicts: engagement level, conversion likelihood          │
 │  Recommends: messaging strategy, send time, actions         │
 └─────────────────────────────────────────────────────────────┘
@@ -122,7 +122,7 @@ Successfully transformed PreventIQ into a comprehensive AI-first marketing autom
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
-│  🤖 AI: generate-email-body (Google Gemini 2.0)             │
+│  🤖 AI: generate-email-body (Azure OpenAI Grok-3)             │
 │  Generates: Unique personalized email content               │
 │  Structure: greeting, paragraphs, CTA, closing              │
 └─────────────────────────────────────────────────────────────┘
@@ -191,8 +191,6 @@ AZURE_OPENAI_ENDPOINT=https://your-endpoint.openai.azure.com/
 AZURE_OPENAI_KEY=your-azure-key
 AZURE_MODEL_NAME=grok-3
 
-# Google Gemini (2.0 Flash Exp)
-GEMINI_API_KEY=your-gemini-key
 
 # Supabase
 SUPABASE_URL=https://your-project.supabase.co
@@ -230,7 +228,7 @@ Expected response:
     "call_to_action": "View Your Health Plan",
     "closing": "Invest in your health today..."
   },
-  "generated_by": "gemini-2.0-flash-exp"
+  "generated_by": "azure-openai-grok-3"
 }
 ```
 
@@ -313,7 +311,7 @@ curl -X POST https://your-project.supabase.co/functions/v1/optimize-campaigns \
 ✅ AI-first persona classification restored  
 ✅ New AI features significantly expand capabilities  
 ✅ Full AI proposition across campaign lifecycle  
-✅ Both Azure OpenAI and Google Gemini utilized  
+✅ Azure OpenAI (Grok-3) for all AI features  
 ✅ Zero security vulnerabilities  
 ✅ Comprehensive documentation  
 ✅ Backward compatible with fallbacks  

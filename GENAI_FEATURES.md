@@ -41,7 +41,7 @@ PreventIQ leverages cutting-edge AI to deliver fully automated, personalized hea
 
 ### 3. AI-Generated Email Body Content (NEW)
 **Edge Function**: `generate-email-body`  
-**AI Model**: Google Gemini 2.0 Flash Exp  
+**AI Model**: Azure OpenAI (Grok-3)  
 **Purpose**: Dynamically generate personalized email content for each lead
 
 **How it works**:
@@ -71,13 +71,13 @@ PreventIQ leverages cutting-edge AI to deliver fully automated, personalized hea
     "call_to_action": "View Your Personalized Health Plan",
     "closing": "Invest in your health today for a more productive tomorrow."
   },
-  "generated_by": "gemini-2.0-flash-exp"
+  "generated_by": "azure-openai-grok-3"
 }
 ```
 
 ### 4. AI-Powered Lead Enrichment (NEW)
 **Edge Function**: `enrich-lead`  
-**AI Model**: Google Gemini 2.0 Flash Exp  
+**AI Model**: Azure OpenAI (Grok-3)  
 **Purpose**: Analyze lead profile and engagement to provide actionable insights
 
 **How it works**:
@@ -216,8 +216,8 @@ Weekly:
 |---------|----------|----------|---------|
 | Persona Classification | Grok-3 | Azure OpenAI | Behavioral analysis |
 | Subject Line Generation | Grok-3 | Azure OpenAI | Creative copywriting |
-| Email Body Generation | Gemini 2.0 Flash | Google | Personalized content |
-| Lead Enrichment | Gemini 2.0 Flash | Google | Predictive analytics |
+| Email Body Generation | Grok-3 | Azure OpenAI | Personalized content |
+| Lead Enrichment | Grok-3 | Azure OpenAI | Predictive analytics |
 | Campaign Optimization | Grok-3 | Azure OpenAI | Strategic insights |
 | Campaign Reports | Grok-3 | Azure OpenAI | Performance analysis |
 
@@ -226,13 +226,10 @@ Weekly:
 ### Required Environment Variables
 
 ```env
-# Azure OpenAI (for classification, subjects, optimization, reports)
+# Azure OpenAI (for all AI features)
 AZURE_OPENAI_ENDPOINT=https://your-endpoint.openai.azure.com/
 AZURE_OPENAI_KEY=your-azure-key
 AZURE_MODEL_NAME=grok-3
-
-# Google Gemini (for email bodies, lead enrichment)
-GEMINI_API_KEY=your-gemini-key
 
 # Supabase
 SUPABASE_URL=https://your-project.supabase.co
