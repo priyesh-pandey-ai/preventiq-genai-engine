@@ -18,8 +18,24 @@
       "typeVersion": 1.2,
       "position": [
         250,
-        300
+        250
       ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-report",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        350
+      ],
+      "webhookId": "generate-report-webhook"
     },
     {
       "parameters": {
@@ -142,6 +158,17 @@
   "pinData": {},
   "connections": {
     "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
       "main": [
         [
           {
