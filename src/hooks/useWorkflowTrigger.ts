@@ -111,18 +111,18 @@ export const useWorkflowTrigger = () => {
   const triggerFetchEvents = async () => {
     setTriggering(true);
     try {
-      // Call the fetch-events workflow
-      const { data, error } = await supabase.functions.invoke("fetch-events", {
+      // Call the sync-events workflow
+      const { data, error } = await supabase.functions.invoke("sync-events", {
         body: {},
       });
 
       if (error) throw error;
 
-      toast.success("Events fetched successfully!");
-      return { success: true };
+      toast.success("Events synced successfully!");
+      return { success: true, data };
     } catch (error) {
-      console.error("Error triggering fetch-events workflow:", error);
-      toast.error("Failed to fetch events. Please try again.");
+      console.error("Error triggering sync-events workflow:", error);
+      toast.error("Failed to sync events. Please try again.");
       return { success: false };
     } finally {
       setTriggering(false);

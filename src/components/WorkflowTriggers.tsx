@@ -119,32 +119,34 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
           </div>
         </div>
 
-        {/* Fetch Events Button */}
+        {/* Sync Events Button */}
         <div className="p-4 bg-background/50 rounded-lg border border-border/50">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <RefreshCw className="h-4 w-4 text-healthcare-blue" />
-                <h4 className="font-semibold text-foreground">Fetch Events</h4>
+                <h4 className="font-semibold text-foreground">Sync Email Events</h4>
               </div>
               <p className="text-sm text-muted-foreground mb-3">
-                Trigger the `fetch-events` workflow to sync email events and update the dashboard.
+                Sync email engagement events from Brevo (opens, clicks, bounces) 
+                to update campaign analytics and track user interactions.
               </p>
               <Button
                 onClick={handleFetchEvents}
                 disabled={triggering}
                 size="sm"
+                variant="outline"
                 className="gap-2"
               >
                 {triggering ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Fetching...
+                    Syncing...
                   </>
                 ) : (
                   <>
-                    <PlayCircle className="h-4 w-4" />
-                    Fetch Events
+                    <RefreshCw className="h-4 w-4" />
+                    Sync Events Now
                   </>
                 )}
               </Button>

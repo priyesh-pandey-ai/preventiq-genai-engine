@@ -138,11 +138,18 @@ export const CustomerList = () => {
                   </div>
                 </div>
                 
-                {customer.persona_label && (
-                  <Badge variant="outline" className="bg-accent/10">
-                    {customer.persona_label}
-                  </Badge>
-                )}
+                <div className="flex flex-col items-end gap-1">
+                  {customer.persona_label ? (
+                    <Badge variant="outline" className="bg-healthcare-blue/10 text-healthcare-blue border-healthcare-blue/30">
+                      <Activity className="h-3 w-3 mr-1" />
+                      {customer.persona_label}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-muted/50 text-muted-foreground">
+                      Not Assigned
+                    </Badge>
+                  )}
+                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-2 text-sm">

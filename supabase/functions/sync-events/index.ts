@@ -184,8 +184,91 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Legacy support: Batch processing via n8n (if needed)
+    // Legacy support: Batch processing via n8n or manual trigger
     const { action, events } = body;
+
+    if (action === 'sync_now' || Object.keys(body).length === 0) {
+      console.log('Manual sync triggered from dashboard...');
+
+      // Fetch recent events from Brevo API
+      const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+      if (!brevoApiKey) {
+        throw new Error('BREVO_API_KEY not configured');
+      }
+
+      // Get events from Brevo for the last 24 hours
+      const response = await fetch('https://api.brevo.com/v3/smtp/statistics/events?limit=100&offset=0', {
+        headers: {
+          'api-key': brevoApiKey,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Brevo API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const brevoEvents = data.events || [];
+
+      let processedCount = 0;
+      let skippedCount = 0;
+
+      for (const brevoEvent of brevoEvents) {
+        try {
+          // Find assignment by message_id (corr_id)
+          const { data: assignment, error: assignmentError } = await supabase
+            .from('assignments')
+            .select('id, persona_id, variant_subject_id')
+            .eq('corr_id', brevoEvent.messageId)
+            .single();
+
+          if (assignmentError || !assignment) {
+            skippedCount++;
+            continue;
+          }
+
+          // Map event type
+          let eventType = brevoEvent.event;
+          if (eventType === 'opened') eventType = 'open';
+          if (eventType === 'clicked') eventType = 'click';
+
+          // Insert event
+          const { error: eventError } = await supabase
+            .from('events')
+            .insert({
+              assignment_id: assignment.id,
+              type: eventType,
+              meta: {
+                email: brevoEvent.email,
+                subject: brevoEvent.subject,
+                message_id: brevoEvent.messageId,
+                ip: brevoEvent.ip,
+                tag: brevoEvent.tag,
+                from: brevoEvent.from,
+              },
+              ts: new Date(brevoEvent.date).toISOString(),
+            });
+
+          if (!eventError || eventError.code === '23505') {
+            processedCount++;
+          }
+        } catch (err) {
+          console.error('Error processing event:', err);
+          skippedCount++;
+        }
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          message: `Synced ${processedCount} events, skipped ${skippedCount}`,
+          processed: processedCount,
+          skipped: skippedCount,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (action === 'get_cursor') {
       console.log('Getting cursor for event sync...');
