@@ -223,8 +223,39 @@ Deno.serve(async (req) => {
         const selectedVariant = selectVariant(variants, stats, totalClicks);
         console.log(`Selected variant ${selectedVariant.id} for lead ${lead.id}`);
 
-        // Step 2e: Get persona-specific email content
-        const emailContent = getPersonaEmailContent(archetype, lead.lang || 'en', lead.name);
+        // Step 2e: Generate AI-powered email body content
+        console.log(`Generating AI email body for lead ${lead.id}...`);
+        let emailContent;
+        
+        try {
+          const bodyResponse = await fetch(`${supabaseUrl}/functions/v1/generate-email-body`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `******
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              persona_id: archetype,
+              lead_name: lead.name,
+              lang: lead.lang || 'en',
+              subject_line: selectedVariant.content,
+            }),
+          });
+
+          if (bodyResponse.ok) {
+            const bodyData = await bodyResponse.json();
+            emailContent = bodyData.email_content;
+            console.log(`AI email content generated for lead ${lead.id}`);
+          } else {
+            // Fallback to static template if AI fails
+            console.warn(`AI email generation failed for lead ${lead.id}, using fallback`);
+            emailContent = getPersonaEmailContent(archetype, lead.lang || 'en', lead.name);
+          }
+        } catch (bodyError) {
+          console.error(`Error generating AI email body for lead ${lead.id}:`, bodyError);
+          // Fallback to static template
+          emailContent = getPersonaEmailContent(archetype, lead.lang || 'en', lead.name);
+        }
 
         // Step 2f: Prepare campaign data for n8n/Brevo
         campaignData.push({
@@ -236,6 +267,7 @@ Deno.serve(async (req) => {
           subject: selectedVariant.content,
           lang: lead.lang || 'en',
           email_content: emailContent,
+          ai_generated: emailContent !== getPersonaEmailContent(archetype, lead.lang || 'en', lead.name),
         });
 
         // Step 2g: Update last_email_sent_at timestamp

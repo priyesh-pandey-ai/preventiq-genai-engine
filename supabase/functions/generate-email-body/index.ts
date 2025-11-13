@@ -1,0 +1,158 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { persona_id, lead_name, lang = 'en', subject_line } = await req.json();
+
+    if (!persona_id) {
+      return new Response(
+        JSON.stringify({ error: 'persona_id is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get persona details
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const { data: persona } = await supabase
+      .from('personas')
+      .select('label, description')
+      .eq('id', persona_id)
+      .single();
+
+    if (!persona) {
+      return new Response(
+        JSON.stringify({ error: 'Persona not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    
+    if (!GEMINI_API_KEY) {
+      console.error('Gemini API key not configured');
+      return new Response(
+        JSON.stringify({ error: 'AI service not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const personaContext = {
+      'ARCH_PRO': 'data-driven professional who values efficiency and ROI, responds to statistics and expert opinions',
+      'ARCH_TP': 'busy parent concerned about family health and hereditary risks, values convenience and trust',
+      'ARCH_SEN': 'senior citizen who trusts traditional medical advice, prefers respectful and clear communication',
+      'ARCH_STU': 'budget-conscious young adult influenced by peer recommendations and social proof',
+      'ARCH_RISK': 'health-aware individual who procrastinates, needs gentle nudges and fear-of-missing-out triggers',
+      'ARCH_PRICE': 'value-seeker motivated by discounts and special offers, responds to limited-time deals'
+    };
+
+    const prompt = `You are an expert healthcare marketing copywriter. Generate a personalized email body for a preventive health campaign.
+
+CONTEXT:
+- Persona: ${persona.label} (${persona.description})
+- Persona Psychology: ${personaContext[persona_id] || persona.description}
+- Lead Name: ${lead_name || 'there'}
+- Subject Line: ${subject_line || 'Your Health Matters'}
+- Language: ${lang === 'hi' ? 'Hindi' : 'English'}
+
+REQUIREMENTS:
+1. Write in ${lang === 'hi' ? 'Hindi' : 'English'} language
+2. Keep tone appropriate for the persona (${personaContext[persona_id]})
+3. Include a warm greeting using the lead's name
+4. 2-3 short paragraphs maximum (under 150 words total)
+5. Focus on benefits relevant to this persona
+6. Create emotional connection and trust
+7. Include a clear call-to-action that motivates them
+8. End with a professional signature
+9. DO NOT include the subject line in the body
+10. DO NOT make medical claims like "cure" or "guarantee"
+
+Return ONLY a JSON object with these keys:
+{
+  "greeting": "Personalized greeting line",
+  "body_paragraph_1": "First engaging paragraph",
+  "body_paragraph_2": "Second paragraph with benefits",
+  "call_to_action": "Motivating CTA text",
+  "closing": "Professional closing line"
+}`;
+
+    console.log(`Generating AI email body for persona ${persona_id} in ${lang}`);
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: prompt }]
+          }],
+          generationConfig: {
+            temperature: 0.8,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 500,
+          }
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Gemini API error:', response.status, errorText);
+      return new Response(
+        JSON.stringify({ error: 'Failed to generate email content' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const data = await response.json();
+    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!content) {
+      throw new Error('No content in Gemini response');
+    }
+
+    // Parse the JSON response
+    let parsedContent;
+    try {
+      const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
+      parsedContent = JSON.parse(cleanContent);
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', content);
+      throw new Error('Invalid JSON response from AI');
+    }
+
+    console.log('AI email content generated successfully');
+
+    return new Response(
+      JSON.stringify({
+        email_content: parsedContent,
+        generated_by: 'gemini-2.0-flash-exp',
+        persona_id,
+        lang
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Error in generate-email-body function:', error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

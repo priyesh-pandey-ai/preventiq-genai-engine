@@ -133,30 +133,30 @@ This folder contains n8n workflow JSON files for automating PreventIQ's email ca
 2. Calls the `campaign-send` Edge Function
 3. Edge Function:
    - Fetches up to 10 active leads who haven't been emailed in the last 24 hours
-   - Calls `classify-persona` to assign each lead to one of 6 personas using:
-     * **Deterministic age-based rules** (primary method) - directly maps age ranges to personas
-     * **AI classification** (fallback) - uses Azure OpenAI Grok-3 when age is not provided
+   - **AI-First**: Calls `classify-persona` using Azure OpenAI (Grok-3) to intelligently assign personas based on lead data
    - Updates leads table with `persona_id` and `last_email_sent_at`
-   - Calls `generate-subjects` to create 3 AI-generated subject line variants per persona/language if none exist
-   - Uses Thompson Sampling algorithm to select the best-performing variant for each persona
-   - Generates persona-specific email content (greeting, intro, body, CTA, closing)
-   - Returns campaign data to n8n
+   - Calls `generate-subjects` (Azure OpenAI) to create 3 AI-generated subject line variants per persona/language if none exist
+   - Uses Thompson Sampling algorithm to select the best-performing variant
+   - **NEW**: Calls `generate-email-body` (Google Gemini 2.0) to create unique, personalized email content for each lead
+   - Returns campaign data with AI-generated content to n8n
 4. n8n workflow:
    - Splits the campaigns array into individual items
    - **Records assignment first** (to get assignment_id)
-   - Sends each email via Brevo API with **persona-specific personalized content**
+   - Sends each email via Brevo API with **AI-generated personalized content**
    - Updates assignment with Brevo message ID and status
    - Logs email details in `events` table with 'sent' event type
 
 **Key Features**:
-- **Deterministic Persona Classification**: Uses age-based rules for accurate persona assignment:
-  * 18-25 → Student/Young Adult
-  * 25-40 (metro cities) → Proactive Professional
-  * 35-50 → Time-poor Parent
-  * 55+ → Skeptical Senior
-  * 40+ → At-risk but Avoidant
-  * AI fallback for leads without age data
-- **Persona-Specific Email Content**: Each persona receives tailored messaging in their language (English/Hindi)
+- **AI-First Persona Classification**: Azure OpenAI analyzes lead behavior patterns beyond simple age rules
+  * Understands nuanced signals in city, organization type, and demographics
+  * Provides explainable AI decisions
+  * More accurate than deterministic rules for edge cases
+- **AI-Generated Email Content**: Google Gemini creates unique, personalized emails for each lead
+  * Every email is fresh and engaging (no template fatigue)
+  * Tailored to persona psychology and motivations
+  * 2-3 short paragraphs with emotional connection
+  * Persona-specific calls-to-action
+  * Fallback to static templates if AI unavailable
 - **Thompson Sampling**: Automatically learns which subject lines work best for each persona over time
 - **Rate Limiting**: 7-second delay between leads + 10-lead batch size to avoid API rate limits
 - **Email Tracking**: Click tracking URLs use assignment_id for accurate attribution

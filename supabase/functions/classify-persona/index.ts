@@ -20,66 +20,17 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log('Classifying lead:', lead_id, { age, city, org_type });
-
-    // Deterministic age-based classification rules
-    let archetype: string | null = null;
-    
-    if (age !== null && age !== undefined) {
-      if (age >= 18 && age <= 25) {
-        archetype = 'ARCH_STU'; // Students/Young Adults
-        console.log('Age-based classification: ARCH_STU (18-25)');
-      } else if (age >= 55) {
-        archetype = 'ARCH_SEN'; // Senior Citizens
-        console.log('Age-based classification: ARCH_SEN (55+)');
-      } else if (age >= 35 && age <= 50) {
-        archetype = 'ARCH_TP'; // Time-poor Parents
-        console.log('Age-based classification: ARCH_TP (35-50)');
-      } else if (age >= 25 && age <= 40) {
-        // Check if metro city for ARCH_PRO
-        const metroCities = ['mumbai', 'delhi', 'bangalore', 'hyderabad', 'chennai', 'kolkata', 'pune'];
-        if (city && metroCities.some(metro => city.toLowerCase().includes(metro))) {
-          archetype = 'ARCH_PRO'; // Proactive Professional
-          console.log('Age-based classification: ARCH_PRO (25-40, metro city)');
-        } else {
-          archetype = 'ARCH_PRO'; // Default for this age group
-          console.log('Age-based classification: ARCH_PRO (25-40)');
-        }
-      } else if (age >= 40) {
-        archetype = 'ARCH_RISK'; // At-risk but Avoidant
-        console.log('Age-based classification: ARCH_RISK (40+)');
-      }
-    }
-
-    // If we got archetype from age-based rules, use it
-    if (archetype) {
-      console.log('Lead classified as:', archetype, '(deterministic)');
-      return new Response(
-        JSON.stringify({ archetype, method: 'deterministic' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Fallback: Use AI-based classification if no age provided
     const AZURE_ENDPOINT = Deno.env.get('AZURE_OPENAI_ENDPOINT');
     const AZURE_KEY = Deno.env.get('AZURE_OPENAI_KEY');
     const MODEL_NAME = Deno.env.get('AZURE_MODEL_NAME') || 'grok-3';
     
     if (!AZURE_ENDPOINT || !AZURE_KEY) {
-      console.error('No age provided and Azure OpenAI not configured, using default');
-      // Fallback to default archetype when no age and no AI available
+      console.error('Azure OpenAI credentials not configured');
       return new Response(
-        JSON.stringify({ 
-          archetype: 'ARCH_PRO', 
-          fallback: true,
-          method: 'default',
-          message: 'Using default archetype - no age provided and AI not configured' 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'AI service not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('No age provided, using AI classification as fallback');
 
     const prompt = `You are a healthcare marketing analyst. Classify this lead into one of these 6 archetypes based on their data.
 Return ONLY a JSON object with the key "archetype" containing the ID.
@@ -93,11 +44,24 @@ ARCHETYPES (with age and behavior patterns):
 - ARCH_PRICE: Any age, primary motivation is discounts/free offers, price-sensitive
 
 LEAD DATA:
+- Age: ${age || 'Not provided'} years
 - City: ${city || 'Not provided'}
 - Organization Type: ${org_type || 'Not provided'}
 - Language: ${lang}
 
+CLASSIFICATION RULES:
+1. If age is provided, use it as the PRIMARY factor
+2. Age 18-25 → likely ARCH_STU
+3. Age 25-40 + metro city → likely ARCH_PRO
+4. Age 35-50 + any indication of family → likely ARCH_TP
+5. Age 55+ → likely ARCH_SEN
+6. Age 40+ without other strong signals → likely ARCH_RISK
+7. If strong price/discount indicators → ARCH_PRICE (any age)
+8. If no age provided, use city and org_type as secondary factors
+
 Return ONLY: {"archetype": "ARCH_XXX"}`;
+
+    console.log('Classifying lead:', lead_id);
 
     const response = await fetch(`${AZURE_ENDPOINT}chat/completions`, {
       method: 'POST',
@@ -124,7 +88,6 @@ Return ONLY: {"archetype": "ARCH_XXX"}`;
         JSON.stringify({ 
           archetype: 'ARCH_PRO', 
           fallback: true,
-          method: 'default',
           message: 'Using default archetype due to AI service error' 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -147,27 +110,27 @@ Return ONLY: {"archetype": "ARCH_XXX"}`;
       console.error('Failed to parse AI response:', content);
       // Fallback to default
       return new Response(
-        JSON.stringify({ archetype: 'ARCH_PRO', fallback: true, method: 'default' }),
+        JSON.stringify({ archetype: 'ARCH_PRO', fallback: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     // Validate archetype
     const validArchetypes = ['ARCH_PRO', 'ARCH_TP', 'ARCH_SEN', 'ARCH_STU', 'ARCH_RISK', 'ARCH_PRICE'];
-    archetype = parsedContent.archetype;
+    const archetype = parsedContent.archetype;
     
     if (!validArchetypes.includes(archetype)) {
       console.error('Invalid archetype returned:', archetype);
       return new Response(
-        JSON.stringify({ archetype: 'ARCH_PRO', fallback: true, method: 'default' }),
+        JSON.stringify({ archetype: 'ARCH_PRO', fallback: true }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Lead classified as:', archetype, '(AI)');
+    console.log('Lead classified as:', archetype);
 
     return new Response(
-      JSON.stringify({ archetype, method: 'ai' }),
+      JSON.stringify({ archetype }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
