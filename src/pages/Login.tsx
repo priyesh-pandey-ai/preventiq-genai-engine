@@ -50,16 +50,25 @@ const Login = () => {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (
-      !formData.name ||
-      !formData.email ||
-      !formData.password ||
-      !formData.org_type ||
-      !formData.city ||
-      !formData.agree
-    ) {
-      toast.error("Please fill in all fields and agree to the terms.");
-      return;
+    // Validation for sign up
+    if (isSignUp) {
+      if (
+        !formData.name ||
+        !formData.email ||
+        !formData.password ||
+        !formData.org_type ||
+        !formData.city ||
+        !formData.agree
+      ) {
+        toast.error("Please fill in all fields and agree to the terms.");
+        return;
+      }
+    } else {
+      // Validation for sign in
+      if (!formData.email || !formData.password) {
+        toast.error("Please enter your email and password.");
+        return;
+      }
     }
 
     if (formData.password.length < 6) {
