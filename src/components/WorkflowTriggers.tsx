@@ -8,7 +8,7 @@ interface WorkflowTriggersProps {
 }
 
 export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) => {
-  const { triggering, triggerCampaignSend, triggerGenerateReport, triggerFetchEvents } = useWorkflowTrigger();
+  const { triggeringCampaign, triggeringReport, triggeringEvents, triggerCampaignSend, triggerGenerateReport, triggerFetchEvents } = useWorkflowTrigger();
 
   const handleCampaignSend = async () => {
     const result = await triggerCampaignSend();
@@ -63,11 +63,11 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
               </p>
               <Button
                 onClick={handleCampaignSend}
-                disabled={triggering}
+                disabled={triggeringCampaign}
                 size="sm"
                 className="gap-2"
               >
-                {triggering ? (
+                {triggeringCampaign ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Processing...
@@ -98,12 +98,12 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
               </p>
               <Button
                 onClick={handleGenerateReport}
-                disabled={triggering}
+                disabled={triggeringReport}
                 size="sm"
                 variant="outline"
                 className="gap-2"
               >
-                {triggering ? (
+                {triggeringReport ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Generating...
@@ -133,12 +133,12 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
               </p>
               <Button
                 onClick={handleFetchEvents}
-                disabled={triggering}
+                disabled={triggeringEvents}
                 size="sm"
                 variant="outline"
                 className="gap-2"
               >
-                {triggering ? (
+                {triggeringEvents ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
                     Syncing...

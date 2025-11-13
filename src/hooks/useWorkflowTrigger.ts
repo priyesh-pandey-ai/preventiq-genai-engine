@@ -10,10 +10,12 @@ const N8N_WEBHOOKS = {
 };
 
 export const useWorkflowTrigger = () => {
-  const [triggering, setTriggering] = useState(false);
+  const [triggeringCampaign, setTriggeringCampaign] = useState(false);
+  const [triggeringReport, setTriggeringReport] = useState(false);
+  const [triggeringEvents, setTriggeringEvents] = useState(false);
 
   const triggerCampaignSend = async () => {
-    setTriggering(true);
+    setTriggeringCampaign(true);
     try {
       // First, get unassigned leads count
       const { data: leads, error: leadsError } = await supabase
@@ -61,12 +63,12 @@ export const useWorkflowTrigger = () => {
       toast.error("Failed to trigger campaign send");
       return { success: false, error };
     } finally {
-      setTriggering(false);
+      setTriggeringCampaign(false);
     }
   };
 
   const triggerClassifyPersona = async (leadId: number) => {
-    setTriggering(true);
+    setTriggeringCampaign(true);
     try {
       const { data: lead, error: leadError } = await supabase
         .from('leads')
@@ -94,12 +96,12 @@ export const useWorkflowTrigger = () => {
       toast.error("Failed to classify lead");
       return { success: false, error };
     } finally {
-      setTriggering(false);
+      setTriggeringCampaign(false);
     }
   };
 
   const triggerGenerateReport = async () => {
-    setTriggering(true);
+    setTriggeringReport(true);
     try {
       // Call the n8n webhook
       const response = await fetch(N8N_WEBHOOKS.generateReport, {
@@ -123,12 +125,12 @@ export const useWorkflowTrigger = () => {
       toast.error("Failed to generate report");
       return { success: false, error };
     } finally {
-      setTriggering(false);
+      setTriggeringReport(false);
     }
   };
 
   const triggerFetchEvents = async () => {
-    setTriggering(true);
+    setTriggeringEvents(true);
     try {
       // Call the n8n webhook
       const response = await fetch(N8N_WEBHOOKS.syncEvents, {
@@ -152,12 +154,14 @@ export const useWorkflowTrigger = () => {
       toast.error("Failed to sync events. Please try again.");
       return { success: false };
     } finally {
-      setTriggering(false);
+      setTriggeringEvents(false);
     }
   };
 
   return {
-    triggering,
+    triggeringCampaign,
+    triggeringReport,
+    triggeringEvents,
     triggerCampaignSend,
     triggerClassifyPersona,
     triggerGenerateReport,
