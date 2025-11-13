@@ -126,6 +126,7 @@ Deno.serve(async (req) => {
             lead_id: lead.id,
             city: lead.city,
             org_type: lead.org_type,
+            age: lead.age,
             lang: lead.lang,
           }),
         });

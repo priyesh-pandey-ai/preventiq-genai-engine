@@ -22,13 +22,21 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [city, setCity] = useState("");
+  const [age, setAge] = useState("");
+  const [phone, setPhone] = useState("");
   const [lang, setLang] = useState("en");
 
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !email || !city) {
+    if (!name || !email || !city || !age) {
       toast.error("Please fill all required fields");
+      return;
+    }
+
+    const ageNum = parseInt(age);
+    if (isNaN(ageNum) || ageNum < 0 || ageNum > 120) {
+      toast.error("Please enter a valid age (0-120)");
       return;
     }
 
@@ -44,6 +52,8 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
           name,
           email,
           city: customerCity,
+          age: parseInt(age),
+          phone: phone || null,
           org_type: orgType,
           lang,
           is_test: false,
@@ -62,6 +72,8 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
         setName("");
         setEmail("");
         setCity("");
+        setAge("");
+        setPhone("");
         setLang("en");
         onImportComplete();
       }
@@ -91,8 +103,8 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
       const lines = text.split('\n');
       const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
       
-      // Validate headers - org_type is now optional
-      const requiredHeaders = ['name', 'email', 'city'];
+      // Validate headers - org_type is now optional, age is required
+      const requiredHeaders = ['name', 'email', 'city', 'age'];
       const hasRequiredHeaders = requiredHeaders.every(h => headers.includes(h));
       
       if (!hasRequiredHeaders) {
@@ -114,11 +126,18 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
           customer[header] = values[index];
         });
         
-        if (customer.name && customer.email && customer.city) {
+        if (customer.name && customer.email && customer.city && customer.age) {
+          const ageNum = parseInt(customer.age);
+          if (isNaN(ageNum) || ageNum < 0 || ageNum > 120) {
+            console.warn(`Invalid age for ${customer.email}, skipping`);
+            continue;
+          }
           customers.push({
             name: customer.name,
             email: customer.email,
             city: customer.city,
+            age: ageNum,
+            phone: customer.phone || null,
             org_type: customer.org_type || userOrgType, // Use user's org_type if not in CSV
             lang: customer.lang || 'en',
             is_test: false,
@@ -219,6 +238,31 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
               </div>
               
               <div className="space-y-2">
+                <Label htmlFor="age">Age *</Label>
+                <Input
+                  id="age"
+                  type="number"
+                  min="0"
+                  max="120"
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  placeholder="35"
+                  required
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+91 98765 43210"
+                />
+              </div>
+              
+              <div className="space-y-2">
                 <Label htmlFor="lang">Preferred Language</Label>
                 <Select value={lang} onValueChange={setLang}>
                   <SelectTrigger id="lang">
@@ -243,7 +287,7 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
             <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
             <h4 className="font-semibold text-foreground mb-2">Upload CSV File</h4>
             <p className="text-sm text-muted-foreground mb-4">
-              CSV should contain columns: name, email, city, lang (optional)
+              CSV should contain columns: name, email, city, age (required), phone, lang (optional)
               {profile?.org_type && <><br/>Organization type will be set to: <span className="font-semibold">{profile.org_type}</span></>}
             </p>
             <Input
@@ -258,9 +302,9 @@ export const CustomerImport = ({ onImportComplete }: CustomerImportProps) => {
           <div className="bg-muted/50 rounded-lg p-4">
             <h5 className="font-semibold text-sm mb-2">CSV Format Example:</h5>
             <pre className="text-xs bg-background p-3 rounded overflow-x-auto">
-{`name,email,city,lang
-John Doe,john@example.com,Mumbai,en
-Jane Smith,jane@example.com,Delhi,hi`}
+{`name,email,city,age,phone,lang
+John Doe,john@example.com,Mumbai,35,+91 98765 43210,en
+Jane Smith,jane@example.com,Delhi,28,,hi`}
             </pre>
           </div>
         </TabsContent>

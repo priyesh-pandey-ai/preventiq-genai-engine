@@ -11,7 +11,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { lead_id, city, org_type, lang = 'en' } = await req.json();
+    const { lead_id, city, org_type, age, lang = 'en' } = await req.json();
 
     if (!lead_id) {
       return new Response(
@@ -35,18 +35,29 @@ Deno.serve(async (req) => {
     const prompt = `You are a healthcare marketing analyst. Classify this lead into one of these 6 archetypes based on their data.
 Return ONLY a JSON object with the key "archetype" containing the ID.
 
-ARCHETYPES:
-- ARCH_PRO: 25-40, tech-savvy, metro city (Mumbai, Delhi, Bangalore, Hyderabad)
-- ARCH_TP: 35-50, family-focused, worried about hereditary risks
-- ARCH_SEN: 55+, trusts doctors, wary of online ads
-- ARCH_STU: 18-25, budget-conscious, student
-- ARCH_RISK: 40+, procrastinates on health checkups
-- ARCH_PRICE: Any age, motivated by discounts
+ARCHETYPES (with age and behavior patterns):
+- ARCH_PRO: 25-40 years old, tech-savvy professionals, metro city dwellers (Mumbai, Delhi, Bangalore, Hyderabad), data-driven
+- ARCH_TP: 35-50 years old, family-focused parents, concerned about hereditary risks, time-constrained
+- ARCH_SEN: 55+ years old, senior citizens, trusts doctors over online ads, traditional communication preferred
+- ARCH_STU: 18-25 years old, students/young adults, budget-conscious, influenced by social proof
+- ARCH_RISK: 40+ years old, at-risk individuals, aware but procrastinates on health checkups
+- ARCH_PRICE: Any age, primary motivation is discounts/free offers, price-sensitive
 
 LEAD DATA:
+- Age: ${age || 'Not provided'} years
 - City: ${city || 'Not provided'}
 - Organization Type: ${org_type || 'Not provided'}
 - Language: ${lang}
+
+CLASSIFICATION RULES:
+1. If age is provided, use it as the PRIMARY factor
+2. Age 18-25 → likely ARCH_STU
+3. Age 25-40 + metro city → likely ARCH_PRO
+4. Age 35-50 + any indication of family → likely ARCH_TP
+5. Age 55+ → likely ARCH_SEN
+6. Age 40+ without other strong signals → likely ARCH_RISK
+7. If strong price/discount indicators → ARCH_PRICE (any age)
+8. If no age provided, use city and org_type as secondary factors
 
 Return ONLY: {"archetype": "ARCH_XXX"}`;
 
