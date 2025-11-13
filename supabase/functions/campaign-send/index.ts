@@ -272,8 +272,8 @@ Deno.serve(async (req) => {
           emailContent = getPersonaEmailContent(archetype, lead.lang || 'en', lead.name);
         }
 
-        // Step 2f: Prepare campaign data for n8n/Brevo
-        campaignData.push({
+        // Step 2f: Prepare campaign data
+        const campaignItem = {
           lead_id: lead.id,
           lead_name: lead.name,
           lead_email: lead.email,
@@ -283,13 +283,98 @@ Deno.serve(async (req) => {
           lang: lead.lang || 'en',
           email_content: emailContent,
           ai_generated: emailContent !== getPersonaEmailContent(archetype, lead.lang || 'en', lead.name),
-        });
+        };
 
-        // Step 2g: Update last_email_sent_at timestamp
-        await supabase
-          .from('leads')
-          .update({ last_email_sent_at: new Date().toISOString() })
-          .eq('id', lead.id);
+        campaignData.push(campaignItem);
+
+        // Step 2g: Create assignment record BEFORE sending email
+        const { data: assignment, error: assignmentError } = await supabase
+          .from('assignments')
+          .insert({
+            lead_id: lead.id,
+            persona_id: archetype,
+            variant_id: selectedVariant.id,
+            status: 'pending',
+          })
+          .select()
+          .single();
+
+        if (assignmentError) {
+          console.error(`Error creating assignment for lead ${lead.id}:`, assignmentError);
+          continue;
+        }
+
+        console.log(`Created assignment ${assignment.id} for lead ${lead.id}`);
+
+        // Step 2h: Send email via Brevo API
+        const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+        if (!brevoApiKey) {
+          console.error('BREVO_API_KEY not set, skipping email send');
+          continue;
+        }
+
+        try {
+          const trackingUrl = `${supabaseUrl}/functions/v1/track-click/${assignment.id}`;
+          
+          const emailBody = {
+            sender: {
+              name: "PreventIQ",
+              email: "p24priyesh@gmail.com"
+            },
+            to: [{
+              email: lead.email,
+              name: lead.name
+            }],
+            subject: selectedVariant.content,
+            htmlContent: `<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;'><div style='background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'><p style='font-size: 16px; color: #333; margin-bottom: 15px;'>${emailContent.greeting || 'Hello there,'}</p><p style='font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 15px;'>${emailContent.body_paragraph_1 || emailContent.intro || 'We have something special for you.'}</p><p style='font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 20px;'>${emailContent.body_paragraph_2 || emailContent.body || ''}</p><div style='text-align: center; margin: 30px 0;'><a href='${trackingUrl}' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>${emailContent.call_to_action || emailContent.cta || 'Learn More'}</a></div><p style='font-size: 14px; color: #777; font-style: italic; margin-top: 20px;'>${emailContent.closing || 'Your health matters to us.'}</p><div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;'><p style='font-size: 14px; color: #999; margin: 5px 0;'>Best regards,</p><p style='font-size: 14px; color: #999; margin: 5px 0; font-weight: 600;'>The PreventIQ Team</p></div></div><div style='text-align: center; margin-top: 20px;'><p style='font-size: 12px; color: #999;'>✨ ${campaignItem.ai_generated ? 'Personalized with AI' : 'Crafted for you'} ✨</p></div></div>`,
+            tags: [`campaign`, `persona_${archetype}`, `variant_${selectedVariant.id}`, campaignItem.ai_generated ? 'ai-generated' : 'template']
+          };
+
+          const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+              'api-key': brevoApiKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(emailBody),
+          });
+
+          if (!brevoResponse.ok) {
+            const errorText = await brevoResponse.text();
+            throw new Error(`Brevo API error: ${brevoResponse.status} - ${errorText}`);
+          }
+
+          const brevoResult = await brevoResponse.json();
+          console.log(`Email sent via Brevo for lead ${lead.id}, messageId: ${brevoResult.messageId}`);
+
+          // Step 2i: Update assignment with message_id and status
+          await supabase
+            .from('assignments')
+            .update({
+              message_id: brevoResult.messageId,
+              status: 'sent',
+            })
+            .eq('id', assignment.id);
+
+          // Step 2j: Update last_email_sent_at timestamp
+          await supabase
+            .from('leads')
+            .update({ last_email_sent_at: new Date().toISOString() })
+            .eq('id', lead.id);
+
+          console.log(`Successfully sent email to ${lead.email}`);
+
+        } catch (emailError) {
+          console.error(`Error sending email for lead ${lead.id}:`, emailError);
+          
+          // Update assignment status to failed
+          await supabase
+            .from('assignments')
+            .update({ status: 'failed' })
+            .eq('id', assignment.id);
+
+          throw emailError;
+        }
 
       } catch (error) {
         console.error(`Error processing lead ${lead.id}:`, error);

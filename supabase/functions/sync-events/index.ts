@@ -216,11 +216,11 @@ Deno.serve(async (req) => {
 
       for (const brevoEvent of brevoEvents) {
         try {
-          // Find assignment by message_id (corr_id)
+          // Find assignment by message_id
           const { data: assignment, error: assignmentError } = await supabase
             .from('assignments')
-            .select('id, persona_id, variant_subject_id')
-            .eq('corr_id', brevoEvent.messageId)
+            .select('id, persona_id, variant_subject_id, lead_id')
+            .eq('message_id', brevoEvent.messageId)
             .single();
 
           if (assignmentError || !assignment) {
@@ -232,6 +232,14 @@ Deno.serve(async (req) => {
           let eventType = brevoEvent.event;
           if (eventType === 'opened') eventType = 'open';
           if (eventType === 'clicked') eventType = 'click';
+          if (eventType === 'delivered') eventType = 'delivered';
+          if (eventType === 'request' || eventType === 'delivered') {
+            // Update assignment status
+            await supabase
+              .from('assignments')
+              .update({ status: 'delivered' })
+              .eq('id', assignment.id);
+          }
 
           // Insert event
           const { error: eventError } = await supabase
@@ -252,6 +260,14 @@ Deno.serve(async (req) => {
 
           if (!eventError || eventError.code === '23505') {
             processedCount++;
+            
+            // Update variant stats for clicks
+            if (eventType === 'click' && assignment.variant_subject_id) {
+              await supabase.rpc('increment_variant_alpha', {
+                p_persona_id: assignment.persona_id,
+                p_variant_id: assignment.variant_subject_id,
+              });
+            }
           }
         } catch (err) {
           console.error('Error processing event:', err);
