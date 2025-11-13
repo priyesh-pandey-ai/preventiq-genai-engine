@@ -1,2 +1,3 @@
-ALTER TABLE events
-ADD CONSTRAINT unique_event UNIQUE (message_id, event_type);
+-- The events table already has a unique constraint on (assignment_id, type)
+-- defined in the initial migration. No additional constraint needed.
+-- This migration file is kept for version control purposes.

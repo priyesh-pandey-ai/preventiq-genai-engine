@@ -1,0 +1,173 @@
+{
+  "name": "Flow: Sync Events",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "host-assignment",
+              "name": "host",
+              "value": "https://zdgvndxdhucbakguvkgw.supabase.co",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "supabase-config",
+      "name": "Supabase Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.brevo.com/v3/smtp/statistics/events",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": false,
+        "options": {}
+      },
+      "id": "fetch-events",
+      "name": "Fetch Events from Brevo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        650,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "brevo-api-credential",
+          "name": "Brevo API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "events",
+        "options": {}
+      },
+      "id": "split-events",
+      "name": "Split Events",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "=WITH assignment_lookup AS (\n  SELECT id FROM assignments WHERE corr_id = '{{ $json.messageId }}'\n)\nINSERT INTO events (assignment_id, type, meta, ts)\nSELECT \n  assignment_lookup.id,\n  '{{ $json.event }}',\n  jsonb_build_object(\n    'email', '{{ $json.email }}',\n    'subject', '{{ $json.subject }}',\n    'message_id', '{{ $json.messageId }}',\n    'ip', '{{ $json.ip }}',\n    'tag', '{{ $json.tag }}',\n    'from', '{{ $json.from }}'\n  ),\n  '{{ $json.date }}'::timestamptz\nFROM assignment_lookup\nON CONFLICT (assignment_id, type)\nDO UPDATE SET\n  meta = EXCLUDED.meta,\n  ts = EXCLUDED.ts;",
+        "options": {}
+      },
+      "id": "store-event",
+      "name": "Store Event in Supabase",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1050,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "supabase-postgres",
+          "name": "Supabase Postgres"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch Events from Brevo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Events from Brevo": {
+      "main": [
+        [
+          {
+            "node": "Split Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Events": {
+      "main": [
+        [
+          {
+            "node": "Store Event in Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "preventiq-genai-engine"
+  },
+  "id": "flow-sync-events",
+  "tags": []
+}
