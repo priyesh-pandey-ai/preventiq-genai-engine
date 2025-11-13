@@ -259,6 +259,9 @@ Deno.serve(async (req) => {
 
           if (bodyResponse.ok) {
             const bodyData = await bodyResponse.json();
+            if (bodyData.fallback) {
+              console.warn(`AI email generation returned fallback for lead ${lead.id}`);
+            }
             emailContent = bodyData.email_content;
             console.log(`AI email content generated for lead ${lead.id}`);
           } else {

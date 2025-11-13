@@ -127,11 +127,40 @@ Return ONLY a JSON object with these keys:
     // Parse the JSON response
     let parsedContent;
     try {
-      const cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
+      // Remove markdown code blocks if present
+      let cleanContent = content.replace(/```json\n?|\n?```/g, '').trim();
+      
+      // Try to find JSON object in the content
+      const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanContent = jsonMatch[0];
+      }
+      
       parsedContent = JSON.parse(cleanContent);
+      
+      // Validate required fields
+      if (!parsedContent.greeting || !parsedContent.call_to_action) {
+        throw new Error('Missing required fields in AI response');
+      }
     } catch (parseError) {
       console.error('Failed to parse Azure OpenAI response:', content);
-      throw new Error('Invalid JSON response from AI');
+      console.error('Parse error:', parseError);
+      
+      // Return a graceful fallback instead of throwing
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to parse AI response',
+          fallback: true,
+          email_content: {
+            greeting: "Hello there,",
+            body_paragraph_1: "We have something important to share with you about your health.",
+            body_paragraph_2: "Take a moment to explore our preventive health solutions designed for you.",
+            call_to_action: "Learn More",
+            closing: "Best regards, Your Health Team"
+          }
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log('AI email content generated successfully');
