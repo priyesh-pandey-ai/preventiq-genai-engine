@@ -2,6 +2,13 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// n8n webhook URLs
+const N8N_WEBHOOKS = {
+  syncEvents: 'https://gaim-priyesh.app.n8n.cloud/webhook/sync-events',
+  campaignSend: 'https://gaim-priyesh.app.n8n.cloud/webhook/campaign-send',
+  generateReport: 'https://gaim-priyesh.app.n8n.cloud/webhook/generate-report',
+};
+
 export const useWorkflowTrigger = () => {
   const [triggering, setTriggering] = useState(false);
 
@@ -32,20 +39,23 @@ export const useWorkflowTrigger = () => {
         return { success: true, data: { message: "No leads to process" } };
       }
 
-      // Call the Edge Function directly (which does the actual work)
-      const { data, error } = await supabase.functions.invoke('campaign-send', {
-        body: {}
+      // Call the n8n webhook
+      const response = await fetch(N8N_WEBHOOKS.campaignSend, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
       });
 
-      if (error) throw error;
-
-      if (data && data.success) {
-        toast.success(`Campaign prepared for ${data.campaigns?.length || 0} leads`);
-        return { success: true, data };
-      } else {
-        toast.info(data?.message || "Campaign processing completed");
-        return { success: true, data };
+      if (!response.ok) {
+        throw new Error(`Webhook failed: ${response.statusText}`);
       }
+
+      const data = await response.json();
+
+      toast.success(`Campaign workflow triggered for ${unassignedCount} leads`);
+      return { success: true, data };
     } catch (error) {
       console.error("Error triggering campaign send:", error);
       toast.error("Failed to trigger campaign send");
@@ -91,11 +101,20 @@ export const useWorkflowTrigger = () => {
   const triggerGenerateReport = async () => {
     setTriggering(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-report', {
-        body: {}
+      // Call the n8n webhook
+      const response = await fetch(N8N_WEBHOOKS.generateReport, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(`Webhook failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
 
       toast.success("Report generation started");
       return { success: true, data };
@@ -111,12 +130,20 @@ export const useWorkflowTrigger = () => {
   const triggerFetchEvents = async () => {
     setTriggering(true);
     try {
-      // Call the sync-events workflow
-      const { data, error } = await supabase.functions.invoke("sync-events", {
-        body: {},
+      // Call the n8n webhook
+      const response = await fetch(N8N_WEBHOOKS.syncEvents, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
       });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error(`Webhook failed: ${response.statusText}`);
+      }
+
+      const data = await response.json();
 
       toast.success("Events synced successfully!");
       return { success: true, data };

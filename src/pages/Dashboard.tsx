@@ -113,6 +113,9 @@ const Dashboard = () => {
     // Refresh dashboard data after workflow trigger
     setRefreshKey((prev) => prev + 1);
     fetchDashboardData();
+    // Also refresh customer list and persona counts
+    setCustomerRefreshKey(prev => prev + 1);
+    fetchPersonaLeadCounts();
   };
 
   const handleLogout = async () => {
@@ -292,8 +295,8 @@ const Dashboard = () => {
 
             {/* Workflow Status and Recent Leads */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <WorkflowStatus />
-              <RecentLeads />
+              <WorkflowStatus key={refreshKey} />
+              <RecentLeads key={refreshKey} />
             </div>
 
             {/* Quick Actions */}
