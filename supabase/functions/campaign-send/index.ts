@@ -27,7 +27,7 @@ function betaSample(alpha: number, beta: number): number {
 
 // Bandit algorithm: Explore (uniform random) vs Exploit (Thompson Sampling)
 function selectVariant(
-  variants: any[],
+  variants: Array<{id: string; content: string}>,
   stats: { [key: string]: { alpha: number; beta: number } },
   totalClicks: number,
   threshold: number = 50
@@ -173,6 +173,7 @@ Deno.serve(async (req) => {
           if (subjectsResponse.ok) {
             const { subjects } = await subjectsResponse.json();
             
+            const newVariants = [];
             // Store variants in database
             for (const subject of subjects) {
               const variantId = `${archetype}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -190,9 +191,10 @@ Deno.serve(async (req) => {
                 .single();
 
               if (newVariant) {
-                variants.push(newVariant);
+                newVariants.push(newVariant);
               }
             }
+            variants = newVariants;
           }
         }
 
