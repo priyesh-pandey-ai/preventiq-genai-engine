@@ -112,7 +112,7 @@ const Login = () => {
         toast.success("Account created! Please check your email to confirm.");
         setIsSignUp(false);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: formData.email,
           password: formData.password,
         });
@@ -121,6 +121,11 @@ const Login = () => {
 
         analytics.trackLogin("signin", true);
         toast.success("Welcome back!");
+        
+        // Explicitly navigate to dashboard after successful login
+        if (data.session) {
+          navigate("/dashboard");
+        }
       }
     } catch (error: any) {
       console.error("Auth error:", error);
