@@ -180,7 +180,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"sender\": {\"name\": \"PreventIQ\", \"email\": \"p24priyesh@gmail.com\"}, \"to\": [{\"email\": {{ $('Split Campaigns').item.json.lead_email }}, \"name\": {{ $('Split Campaigns').item.json.lead_name }}}], \"subject\": {{ $('Split Campaigns').item.json.subject }}, \"htmlContent\": \"<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'><p>{{ $('Split Campaigns').item.json.email_content.greeting }}</p><p><strong>{{ $('Split Campaigns').item.json.email_content.intro }}</strong></p><p>{{ $('Split Campaigns').item.json.email_content.body }}</p><p style='text-align: center; margin: 30px 0;'><a href='https://zdgvndxdhucbakguvkgw.supabase.co/functions/v1/track-click/{{ $('Record Assignment').item.json.id }}' style='background-color: #0066cc; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;'>{{ $('Split Campaigns').item.json.email_content.cta }}</a></p><p><em>{{ $('Split Campaigns').item.json.email_content.closing }}</em></p><p>Best regards,<br>The PreventIQ Team</p></div>\", \"tags\": [\"campaign\", \"persona_{{ $('Split Campaigns').item.json.persona_id }}, \"variant_{{ $('Split Campaigns').item.json.variant_id }}]}",
+        "jsonBody": "={\n  \"sender\": {\n    \"name\": \"PreventIQ\",\n    \"email\": \"p24priyesh@gmail.com\"\n  },\n  \"to\": [\n    {\n      \"email\": \"{{ $json.lead_email }}\",\n      \"name\": \"{{ $json.lead_name }}\"\n    }\n  ],\n  \"subject\": \"{{ $json.subject }}\",\n  \"htmlContent\": \"<p>Hi {{ $json.lead_name }},</p><p>{{ $json.subject }}</p><p><a href='https://preventiq.com/track?lead={{ $json.lead_id }}&variant={{ $json.variant_id }}'>Learn More</a></p><p>Best,<br>PreventIQ Team</p>\",\n  \"tags\": [\"campaign\", \"persona_{{ $json.persona_id }}\", \"variant_{{ $json.variant_id }}\"]\n}",
         "options": {}
       },
       "id": "send-email-brevo",
@@ -201,7 +201,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, status, send_at) VALUES ({{ $('Split Campaigns').item.json.lead_id }}, '{{ $('Split Campaigns').item.json.persona_id }}', '{{ $('Split Campaigns').item.json.variant_id }}', 'queued', NOW()) RETURNING id",
+        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, corr_id, status, send_at, sent_at) VALUES ({{ $('Split Campaigns').item.json.lead_id }}, '{{ $('Split Campaigns').item.json.persona_id }}', '{{ $('Split Campaigns').item.json.variant_id }}', '{{ $('Send Email via Brevo').item.json.messageId }}', 'sent', NOW(), NOW()) RETURNING id",
         "options": {}
       },
       "id": "record-assignment",
@@ -222,7 +222,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=UPDATE assignments SET corr_id = '{{ $('Send Email via Brevo').item.json.messageId }}', status = 'sent', sent_at = NOW() WHERE id = {{ $('Record Assignment').item.json.id }}; INSERT INTO events (assignment_id, type, meta, ts) VALUES ({{ $('Record Assignment').item.json.id }}, 'sent', jsonb_build_object('email', '{{ $('Split Campaigns').item.json.lead_email }}', 'subject', '{{ $('Split Campaigns').item.json.subject }}', 'message_id', '{{ $('Send Email via Brevo').item.json.messageId }}', 'variant_id', '{{ $('Split Campaigns').item.json.variant_id }}', 'from', 'p24priyesh@gmail.com'), NOW()) ON CONFLICT (assignment_id, type) DO UPDATE SET meta = EXCLUDED.meta, ts = EXCLUDED.ts RETURNING *",
+        "query": "=INSERT INTO events (assignment_id, type, meta, ts) VALUES ({{ $json.id }}, 'sent', jsonb_build_object('email', '{{ $('Split Campaigns').item.json.lead_email }}', 'subject', '{{ $('Split Campaigns').item.json.subject }}', 'message_id', '{{ $('Send Email via Brevo').item.json.messageId }}', 'variant_id', '{{ $('Split Campaigns').item.json.variant_id }}', 'from', 'p24priyesh@gmail.com'), NOW()) ON CONFLICT (assignment_id, type) DO UPDATE SET meta = EXCLUDED.meta, ts = EXCLUDED.ts",
         "options": {}
       },
       "id": "log-email",
@@ -309,17 +309,6 @@
       "main": [
         [
           {
-            "node": "Record Assignment",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Record Assignment": {
-      "main": [
-        [
-          {
             "node": "Send Email via Brevo",
             "type": "main",
             "index": 0
@@ -328,6 +317,17 @@
       ]
     },
     "Send Email via Brevo": {
+      "main": [
+        [
+          {
+            "node": "Record Assignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Assignment": {
       "main": [
         [
           {

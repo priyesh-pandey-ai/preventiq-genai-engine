@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getPersonaEmailContent } from '../shared/persona-templates.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -71,73 +72,77 @@ Deno.serve(async (req) => {
 
     console.log('Starting campaign send process...');
 
-    // Step 1: Get unassigned leads (leads without assignments)
-    const { data: unassignedLeads, error: leadsError } = await supabase
+    // Step 1: Get leads to process (not emailed in last 24 hours or never emailed)
+    const { data: leadsToEmail, error: leadsError } = await supabase
       .from('leads')
-      .select('id, name, email, city, org_type, lang')
+      .select('id, name, email, city, org_type, lang, age, persona_id')
       .is('is_test', false)
+      .or('last_email_sent_at.is.null,last_email_sent_at.lt.' + new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       .limit(10); // Process max 10 leads per run (with 7s delay = ~70s total)
 
     if (leadsError) throw leadsError;
 
-    if (!unassignedLeads || unassignedLeads.length === 0) {
-      console.log('No unassigned leads found');
+    if (!leadsToEmail || leadsToEmail.length === 0) {
+      console.log('No leads found to email');
       return new Response(
         JSON.stringify({ message: 'No leads to process', processed: 0 }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Filter out leads that already have assignments
-    const leadIds = unassignedLeads.map(l => l.id);
-    const { data: existingAssignments } = await supabase
-      .from('assignments')
-      .select('lead_id')
-      .in('lead_id', leadIds);
-
-    const assignedLeadIds = new Set(existingAssignments?.map(a => a.lead_id) || []);
-    const leadsToProcess = unassignedLeads.filter(lead => !assignedLeadIds.has(lead.id));
-
-    console.log(`Processing ${leadsToProcess.length} leads`);
+    console.log(`Found ${leadsToEmail.length} leads to process`);
 
     const campaignData = [];
 
     // Step 2: Process each lead (with delay to avoid API rate limits)
-    for (let i = 0; i < leadsToProcess.length; i++) {
-      const lead = leadsToProcess[i];
+    for (let i = 0; i < leadsToEmail.length; i++) {
+      const lead = leadsToEmail[i];
       
-      // Add 7-second delay between leads to stay under Gemini's 10 req/min limit
+      // Add 7-second delay between leads to stay under rate limits
       if (i > 0) {
-        console.log(`Waiting 7 seconds before processing lead ${i + 1}/${leadsToProcess.length}...`);
+        console.log(`Waiting 7 seconds before processing lead ${i + 1}/${leadsToEmail.length}...`);
         await new Promise(resolve => setTimeout(resolve, 7000));
       }
       
       try {
-        // Step 2a: Classify lead into persona
-        console.log(`Classifying lead ${lead.id}...`);
+        let archetype = lead.persona_id;
         
-        const classifyResponse = await fetch(`${supabaseUrl}/functions/v1/classify-persona`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            lead_id: lead.id,
-            city: lead.city,
-            org_type: lead.org_type,
-            age: lead.age,
-            lang: lead.lang,
-          }),
-        });
+        // Step 2a: Classify lead into persona if not already classified
+        if (!archetype) {
+          console.log(`Classifying lead ${lead.id}...`);
+          
+          const classifyResponse = await fetch(`${supabaseUrl}/functions/v1/classify-persona`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              lead_id: lead.id,
+              city: lead.city,
+              org_type: lead.org_type,
+              age: lead.age,
+              lang: lead.lang,
+            }),
+          });
 
-        if (!classifyResponse.ok) {
-          console.error(`Classification failed for lead ${lead.id}`);
-          continue;
+          if (!classifyResponse.ok) {
+            console.error(`Classification failed for lead ${lead.id}`);
+            continue;
+          }
+
+          const classifyResult = await classifyResponse.json();
+          archetype = classifyResult.archetype;
+          console.log(`Lead ${lead.id} classified as ${archetype} (${classifyResult.method || 'unknown'})`);
+          
+          // Update lead with persona_id
+          await supabase
+            .from('leads')
+            .update({ persona_id: archetype })
+            .eq('id', lead.id);
+        } else {
+          console.log(`Lead ${lead.id} already has persona ${archetype}`);
         }
-
-        const { archetype } = await classifyResponse.json();
-        console.log(`Lead ${lead.id} classified as ${archetype}`);
 
         // Step 2b: Get or create variants for this persona
         const { data: existingVariants } = await supabase
@@ -216,7 +221,10 @@ Deno.serve(async (req) => {
         const selectedVariant = selectVariant(variants, stats, totalClicks);
         console.log(`Selected variant ${selectedVariant.id} for lead ${lead.id}`);
 
-        // Step 2e: Prepare campaign data for n8n/Brevo
+        // Step 2e: Get persona-specific email content
+        const emailContent = getPersonaEmailContent(archetype, lead.lang || 'en', lead.name);
+
+        // Step 2f: Prepare campaign data for n8n/Brevo
         campaignData.push({
           lead_id: lead.id,
           lead_name: lead.name,
@@ -225,7 +233,14 @@ Deno.serve(async (req) => {
           variant_id: selectedVariant.id,
           subject: selectedVariant.content,
           lang: lead.lang || 'en',
+          email_content: emailContent,
         });
+
+        // Step 2g: Update last_email_sent_at timestamp
+        await supabase
+          .from('leads')
+          .update({ last_email_sent_at: new Date().toISOString() })
+          .eq('id', lead.id);
 
       } catch (error) {
         console.error(`Error processing lead ${lead.id}:`, error);
@@ -247,8 +262,7 @@ Deno.serve(async (req) => {
         message: `Prepared ${campaignData.length} campaigns`,
         campaigns: campaignData,
         stats: {
-          total_leads: unassignedLeads.length,
-          already_assigned: assignedLeadIds.size,
+          total_leads_checked: leadsToEmail.length,
           processed: campaignData.length,
         },
       }),
