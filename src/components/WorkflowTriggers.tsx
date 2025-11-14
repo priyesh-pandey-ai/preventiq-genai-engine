@@ -1,7 +1,10 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Zap, Mail, FileText, Loader2, PlayCircle, RefreshCw } from "lucide-react";
+import { Zap, Mail, FileText, Loader2, PlayCircle, RefreshCw, Sparkles, TrendingUp, UserCheck } from "lucide-react";
 import { useWorkflowTrigger } from "@/hooks/useWorkflowTrigger";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { useState } from "react";
 
 interface WorkflowTriggersProps {
   onTriggerComplete?: () => void;
@@ -9,6 +12,8 @@ interface WorkflowTriggersProps {
 
 export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) => {
   const { triggeringCampaign, triggeringReport, triggeringEvents, triggerCampaignSend, triggerGenerateReport, triggerFetchEvents } = useWorkflowTrigger();
+  const [classifyingAll, setClassifyingAll] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
 
   const handleCampaignSend = async () => {
     const result = await triggerCampaignSend();
@@ -28,6 +33,112 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
     const result = await triggerFetchEvents();
     if (result.success && onTriggerComplete) {
       onTriggerComplete();
+    }
+  };
+
+  const handleClassifyAllLeads = async () => {
+    setClassifyingAll(true);
+    try {
+      // Get all leads without persona_id
+      const { data: leads, error: leadsError } = await supabase
+        .from('leads')
+        .select('id, city, org_type, age, lang, name, email')
+        .is('persona_id', null)
+        .limit(20);
+
+      if (leadsError) throw leadsError;
+
+      if (!leads || leads.length === 0) {
+        toast.info("No unclassified leads found");
+        return;
+      }
+
+      let classified = 0;
+      let enriched = 0;
+      for (const lead of leads) {
+        try {
+          // Step 1: Classify persona
+          const { data, error } = await supabase.functions.invoke('classify-persona', {
+            body: {
+              lead_id: lead.id,
+              city: lead.city,
+              org_type: lead.org_type,
+              age: lead.age,
+              lang: lead.lang
+            }
+          });
+
+          if (error) throw error;
+
+          // Update the lead with the persona
+          await supabase
+            .from('leads')
+            .update({ persona_id: data.archetype })
+            .eq('id', lead.id);
+
+          classified++;
+
+          // Step 2: Generate AI insights for the lead
+          try {
+            const enrichResult = await supabase.functions.invoke('enrich-lead', {
+              body: {
+                lead_id: lead.id,
+                name: lead.name,
+                email: lead.email,
+                city: lead.city,
+                org_type: lead.org_type,
+                age: lead.age,
+                persona_id: data.archetype
+              }
+            });
+
+            if (!enrichResult.error) {
+              enriched++;
+            }
+          } catch (enrichError) {
+            console.error(`Error enriching lead ${lead.id}:`, enrichError);
+          }
+        } catch (error) {
+          console.error(`Error classifying lead ${lead.id}:`, error);
+        }
+      }
+
+      toast.success(`Processed ${classified} leads`, {
+        description: `Classified ${classified} personas and generated ${enriched} AI insights`
+      });
+
+      if (onTriggerComplete) {
+        onTriggerComplete();
+      }
+    } catch (error: any) {
+      console.error("Error classifying leads:", error);
+      toast.error("Failed to classify leads", {
+        description: error.message
+      });
+    } finally {
+      setClassifyingAll(false);
+    }
+  };
+
+  const handleOptimizeCampaigns = async () => {
+    setOptimizing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('optimize-campaigns');
+
+      if (error) throw error;
+
+      toast.success("Campaign optimization complete", {
+        description: `Found ${data.recommendations?.top_opportunities?.length || 0} opportunities`
+      });
+
+      console.log("Optimization recommendations:", data);
+    } catch (error: any) {
+      console.error("Error optimizing campaigns:", error);
+      toast.error("Failed to optimize campaigns", {
+        description: error.message
+      });
+    } finally {
+      setOptimizing(false);
     }
   };
 
@@ -76,6 +187,78 @@ export const WorkflowTriggers = ({ onTriggerComplete }: WorkflowTriggersProps) =
                   <>
                     <PlayCircle className="h-4 w-4" />
                     Process Leads Now
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 bg-background/50 rounded-lg border border-border/50">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <UserCheck className="h-4 w-4 text-healthcare-blue" />
+                <h4 className="font-semibold text-foreground">
+                  AI Classify All Unassigned Leads
+                </h4>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">
+                Use AI to automatically classify all leads without persona assignments and generate AI insights.
+                Processes up to 20 leads using Azure OpenAI (persona + enrichment).
+              </p>
+              <Button
+                onClick={handleClassifyAllLeads}
+                disabled={classifyingAll}
+                size="sm"
+                variant="outline"
+                className="gap-2"
+              >
+                {classifyingAll ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Classifying...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Classify All
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 bg-background/50 rounded-lg border border-border/50">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="h-4 w-4 text-healthcare-purple" />
+                <h4 className="font-semibold text-foreground">
+                  AI Campaign Optimization
+                </h4>
+              </div>
+              <p className="text-sm text-muted-foreground mb-3">
+                Analyze campaign performance and get AI-powered recommendations for improvement.
+                Identifies opportunities and suggests innovative ideas.
+              </p>
+              <Button
+                onClick={handleOptimizeCampaigns}
+                disabled={optimizing}
+                size="sm"
+                variant="outline"
+                className="gap-2"
+              >
+                {optimizing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Analyzing...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Optimize Campaigns
                   </>
                 )}
               </Button>

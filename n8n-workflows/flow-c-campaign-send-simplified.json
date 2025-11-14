@@ -1,0 +1,185 @@
+{
+  "name": "Flow C: Daily Campaign Send (Simplified)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campaign-send",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        400
+      ],
+      "webhookId": "campaign-send-webhook"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "host-assignment",
+              "name": "host",
+              "value": "https://zdgvndxdhucbakguvkgw.supabase.co",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "supabase-config",
+      "name": "Supabase Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        450,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Supabase Config').item.json.host }}/functions/v1/campaign-send",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "supabaseApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={}",
+        "options": {}
+      },
+      "id": "call-campaign-send",
+      "name": "Call campaign-send Edge Function",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        650,
+        350
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "supabase-api-credential",
+          "name": "Supabase API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "result-summary",
+              "name": "summary",
+              "value": "={{ $json.success ? 'Campaign processed successfully. Emails sent: ' + ($json.campaigns?.length || 0) : 'Campaign failed: ' + $json.error }}",
+              "type": "string"
+            },
+            {
+              "id": "email-count",
+              "name": "emails_sent",
+              "value": "={{ $json.campaigns?.length || 0 }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "result-summary",
+      "name": "Display Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        850,
+        350
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Supabase Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Config": {
+      "main": [
+        [
+          {
+            "node": "Call campaign-send Edge Function",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call campaign-send Edge Function": {
+      "main": [
+        [
+          {
+            "node": "Display Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "2",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "preventiq-genai-engine"
+  },
+  "id": "flow-c-campaign-send",
+  "tags": []
+}

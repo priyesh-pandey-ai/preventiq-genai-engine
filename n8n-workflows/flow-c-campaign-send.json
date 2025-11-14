@@ -180,7 +180,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"sender\": {\n    \"name\": \"PreventIQ\",\n    \"email\": \"p24priyesh@gmail.com\"\n  },\n  \"to\": [\n    {\n      \"email\": \"{{ $json.lead_email }}\",\n      \"name\": \"{{ $json.lead_name }}\"\n    }\n  ],\n  \"subject\": \"{{ $json.subject }}\",\n  \"htmlContent\": \"<p>Hi {{ $json.lead_name }},</p><p>{{ $json.subject }}</p><p><a href='https://preventiq.com/track?lead={{ $json.lead_id }}&variant={{ $json.variant_id }}'>Learn More</a></p><p>Best,<br>PreventIQ Team</p>\",\n  \"tags\": [\"campaign\", \"persona_{{ $json.persona_id }}\", \"variant_{{ $json.variant_id }}\"]\n}",
+        "jsonBody": "={\n  \"sender\": {\n    \"name\": \"PreventIQ\",\n    \"email\": \"p24priyesh@gmail.com\"\n  },\n  \"to\": [\n    {\n      \"email\": \"{{ $('Split Campaigns').item.json.lead_email }}\",\n      \"name\": \"{{ $('Split Campaigns').item.json.lead_name }}\"\n    }\n  ],\n  \"subject\": \"{{ $('Split Campaigns').item.json.subject }}\",\n  \"htmlContent\": \"<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;'><div style='background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'><p style='font-size: 16px; color: #333; margin-bottom: 15px;'>{{ $('Split Campaigns').item.json.email_content.greeting || 'Hello there,' }}</p><p style='font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 15px;'>{{ $('Split Campaigns').item.json.email_content.body_paragraph_1 || $('Split Campaigns').item.json.email_content.intro || 'We have something special for you.' }}</p><p style='font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 20px;'>{{ $('Split Campaigns').item.json.email_content.body_paragraph_2 || $('Split Campaigns').item.json.email_content.body || '' }}</p><div style='text-align: center; margin: 30px 0;'><a href='https://zdgvndxdhucbakguvkgw.supabase.co/functions/v1/track-click/{{ $('Record Assignment').item.json.id }}' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>{{ $('Split Campaigns').item.json.email_content.call_to_action || $('Split Campaigns').item.json.email_content.cta || 'Learn More' }}</a></div><p style='font-size: 14px; color: #777; font-style: italic; margin-top: 20px;'>{{ $('Split Campaigns').item.json.email_content.closing || 'Your health matters to us.' }}</p><div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;'><p style='font-size: 14px; color: #999; margin: 5px 0;'>Best regards,</p><p style='font-size: 14px; color: #999; margin: 5px 0; font-weight: 600;'>The PreventIQ Team</p></div></div><div style='text-align: center; margin-top: 20px;'><p style='font-size: 12px; color: #999;'>\u2728 {{ $('Split Campaigns').item.json.ai_generated ? 'Personalized with AI' : 'Crafted for you' }} \u2728</p></div></div>\",\n  \"tags\": [\"campaign\", \"persona_{{ $('Split Campaigns').item.json.persona_id }}\", \"variant_{{ $('Split Campaigns').item.json.variant_id }}\", \"{{ $('Split Campaigns').item.json.ai_generated ? 'ai-generated' : 'template' }}\"]\n}",
         "options": {}
       },
       "id": "send-email-brevo",
@@ -201,7 +201,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, corr_id, status, send_at, sent_at) VALUES ({{ $('Split Campaigns').item.json.lead_id }}, '{{ $('Split Campaigns').item.json.persona_id }}', '{{ $('Split Campaigns').item.json.variant_id }}', '{{ $('Send Email via Brevo').item.json.messageId }}', 'sent', NOW(), NOW()) RETURNING id",
+        "query": "=INSERT INTO assignments (lead_id, persona_id, variant_subject_id, status, send_at) VALUES ({{ $('Split Campaigns').item.json.lead_id }}, '{{ $('Split Campaigns').item.json.persona_id }}', '{{ $('Split Campaigns').item.json.variant_id }}', 'queued', NOW()) RETURNING id",
         "options": {}
       },
       "id": "record-assignment",
@@ -222,7 +222,7 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "=INSERT INTO events (assignment_id, type, meta, ts) VALUES ({{ $json.id }}, 'sent', jsonb_build_object('email', '{{ $('Split Campaigns').item.json.lead_email }}', 'subject', '{{ $('Split Campaigns').item.json.subject }}', 'message_id', '{{ $('Send Email via Brevo').item.json.messageId }}', 'variant_id', '{{ $('Split Campaigns').item.json.variant_id }}', 'from', 'p24priyesh@gmail.com'), NOW()) ON CONFLICT (assignment_id, type) DO UPDATE SET meta = EXCLUDED.meta, ts = EXCLUDED.ts",
+        "query": "=UPDATE assignments SET corr_id = '{{ $('Send Email via Brevo').item.json.messageId }}', status = 'sent', sent_at = NOW() WHERE id = {{ $('Record Assignment').item.json.id }}; INSERT INTO events (assignment_id, type, meta, ts) VALUES ({{ $('Record Assignment').item.json.id }}, 'sent', jsonb_build_object('email', '{{ $('Split Campaigns').item.json.lead_email }}', 'subject', '{{ $('Split Campaigns').item.json.subject }}', 'message_id', '{{ $('Send Email via Brevo').item.json.messageId }}', 'variant_id', '{{ $('Split Campaigns').item.json.variant_id }}', 'from', 'p24priyesh@gmail.com'), NOW()) ON CONFLICT (assignment_id, type) DO UPDATE SET meta = EXCLUDED.meta, ts = EXCLUDED.ts RETURNING *",
         "options": {}
       },
       "id": "log-email",
@@ -309,17 +309,6 @@
       "main": [
         [
           {
-            "node": "Send Email via Brevo",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send Email via Brevo": {
-      "main": [
-        [
-          {
             "node": "Record Assignment",
             "type": "main",
             "index": 0
@@ -328,6 +317,17 @@
       ]
     },
     "Record Assignment": {
+      "main": [
+        [
+          {
+            "node": "Send Email via Brevo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email via Brevo": {
       "main": [
         [
           {

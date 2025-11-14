@@ -2,9 +2,27 @@
 
 This folder contains n8n workflow JSON files for automating PreventIQ's email campaigns using Thompson Sampling bandit algorithm and weekly performance reports.
 
+## ⚠️ IMPORTANT: Workflow Duplication Issue
+
+**The original `flow-c-campaign-send.json` has DUPLICATE email sending logic!**
+
+Since the `campaign-send` edge function now handles everything (creating assignments, sending emails via Brevo, updating status), the n8n workflow nodes for "Record Assignment", "Send Email via Brevo", and "Log Email Sent" are **redundant and cause duplicate emails**.
+
+### Recommended Action:
+
+**Use `flow-c-campaign-send-simplified.json`** instead of the original workflow.
+
+The simplified workflow:
+1. Triggers (Schedule or Webhook)
+2. Calls `campaign-send` edge function
+3. Displays results
+4. **NO duplicate email sending**
+
 ## Files
 
-- **flow-c-campaign-send.json** - Daily campaign automation (runs at 9 AM daily)
+- **flow-c-campaign-send-simplified.json** - ✅ **RECOMMENDED** - Simplified daily campaign (no duplication)
+- **flow-c-campaign-send.json** - ❌ **DO NOT USE** - Original workflow with duplicate email sending
+- **flow-sync-events.json** - Sync email events from Brevo
 - **flow-f-report-generation.json** - Weekly report generation (runs at 10 AM every Monday)
 
 ## Prerequisites
@@ -61,7 +79,7 @@ This folder contains n8n workflow JSON files for automating PreventIQ's email ca
    - Search for and select **Header Auth**
    - Configure it:
      - **Name** (HTTP header name): `api-key`
-     - **Value**: Paste your Brevo API key (e.g., `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`)
+     - **Value**: Paste your Brevo API key (format: `xkeysib-...`)
    - Click **Save**
    - When prompted for a credential name, use: `Brevo API`
 
@@ -132,32 +150,44 @@ This folder contains n8n workflow JSON files for automating PreventIQ's email ca
 1. Triggers automatically at 9 AM daily
 2. Calls the `campaign-send` Edge Function
 3. Edge Function:
-   - Fetches up to 10 active leads who haven't been emailed in the last 24 hours (with 7-second delay between leads to avoid rate limits)
-   - Calls `classify-persona` to assign each lead to one of 6 personas (using Azure OpenAI Grok-3)
-   - Calls `generate-subjects` to create 3 AI-generated subject line variants per persona/language if none exist
-   - Uses Thompson Sampling algorithm to select the best-performing variant for each persona
-   - Returns campaign data to n8n
+   - Fetches up to 10 active leads who haven't been emailed in the last 24 hours
+   - **AI-First**: Calls `classify-persona` using Azure OpenAI (Grok-3) to intelligently assign personas based on lead data
+   - Updates leads table with `persona_id` and `last_email_sent_at`
+   - Calls `generate-subjects` (Azure OpenAI) to create 3 AI-generated subject line variants per persona/language if none exist
+   - Uses Thompson Sampling algorithm to select the best-performing variant
+   - **NEW**: Calls `generate-email-body` (Azure OpenAI Grok-3) to create unique, personalized email content for each lead
+   - Returns campaign data with AI-generated content to n8n
 4. n8n workflow:
    - Splits the campaigns array into individual items
-   - Sends each email via Brevo API with personalized subject line
-   - Records assignment in `assignments` table (for Thompson Sampling tracking)
-   - Logs email details in `email_log` table (with Brevo message ID for tracking)
+   - **Records assignment first** (to get assignment_id)
+   - Sends each email via Brevo API with **AI-generated personalized content**
+   - Updates assignment with Brevo message ID and status
+   - Logs email details in `events` table with 'sent' event type
 
 **Key Features**:
-- **AI-Powered Personalization**: Each lead is classified into a persona archetype (Professional, Tech Pioneer, Senior, Student, Risk-Averse, Price-Conscious)
+- **AI-First Persona Classification**: Azure OpenAI analyzes lead behavior patterns beyond simple age rules
+  * Understands nuanced signals in city, organization type, and demographics
+  * Provides explainable AI decisions
+  * More accurate than deterministic rules for edge cases
+- **AI-Generated Email Content**: Azure OpenAI creates unique, personalized emails for each lead
+  * Every email is fresh and engaging (no template fatigue)
+  * Tailored to persona psychology and motivations
+  * 2-3 short paragraphs with emotional connection
+  * Persona-specific calls-to-action
+  * Fallback to static templates if AI unavailable
 - **Thompson Sampling**: Automatically learns which subject lines work best for each persona over time
-- **Rate Limiting**: 7-second delay between leads + 10-lead batch size to avoid AI API rate limits
-- **Email Tracking**: Stores Brevo message ID for delivery tracking and click webhooks
+- **Rate Limiting**: 7-second delay between leads + 10-lead batch size to avoid API rate limits
+- **Email Tracking**: Click tracking URLs use assignment_id for accurate attribution
 
-**Nodes**:
+**Nodes** (execution order):
 - **Schedule Trigger**: Cron schedule (0 9 * * *)
 - **Supabase Config**: Sets the Supabase host URL
-- **Call campaign-send**: HTTP Request to Edge Function (processes up to 10 leads with AI classification and variant generation)
+- **Call campaign-send**: HTTP Request to Edge Function (processes up to 10 leads)
 - **Has Campaigns?**: Conditional check - proceeds only if campaigns were generated
 - **Split Campaigns**: Splits the campaigns array into individual items for processing
-- **Send Email via Brevo**: HTTP POST to Brevo API with personalized email content
-- **Record Assignment**: Inserts assignment record for Thompson Sampling tracking
-- **Log Email**: Records email details and Brevo message ID for tracking
+- **Record Assignment**: Inserts assignment record FIRST (to get assignment_id for tracking URL)
+- **Send Email via Brevo**: HTTP POST to Brevo API with persona-specific personalized content
+- **Log Email Sent**: Updates assignment status and logs event in events table
 
 ### Flow F: Weekly Report Generation
 
@@ -282,28 +312,40 @@ This folder contains n8n workflow JSON files for automating PreventIQ's email ca
 n8n Cloud
   ↓ (HTTP Request with Supabase API auth)
 Supabase Edge Function (campaign-send)
-  ↓ (calls for each lead)
-classify-persona Edge Function (Azure OpenAI Grok-3)
-  ↓ (assigns persona archetype)
-generate-subjects Edge Function (Azure OpenAI Grok-3)
-  ↓ (creates subject line variants if needed)
-campaign-send returns to n8n
+  ↓ (processes up to 10 leads with 7s delays)
+  ├─ Checks persona_id in leads table
+  │   └─ If missing: calls classify-persona Edge Function
+  │       ├─ Age-based deterministic rules (primary)
+  │       └─ Azure OpenAI Grok-3 (fallback when no age)
+  ├─ Updates leads table: persona_id, last_email_sent_at
+  ├─ Checks for existing variants
+  │   └─ If missing: calls generate-subjects Edge Function (Azure OpenAI)
+  ├─ Selects best variant using Thompson Sampling
+  └─ Generates persona-specific email content
   ↓
-n8n sends emails via Brevo API
+campaign-send returns to n8n with campaign data
+  ↓
+n8n workflow:
+  ├─ Split Campaigns (loop over each lead)
+  ├─ Record Assignment (INSERT into assignments, get ID)
+  ├─ Send Email via Brevo (with assignment_id in tracking URL)
+  └─ Log Email Sent (UPDATE assignment, INSERT event)
   ↓
 Brevo delivers emails to leads
-  ↓ (click tracking webhook)
-Supabase Edge Function (track-click)
-  ↓ (updates Thompson Sampling data)
+  ↓ (click tracking: user clicks link with assignment_id)
+track-click Edge Function
+  ↓ (INSERT into events, call increment_variant_alpha)
 variant_stats table (alpha/beta values for bandit algorithm)
 ```
 
 **Thompson Sampling Flow**:
-1. User clicks email link → `https://preventiq.com/track?lead=25&variant=ARCH_RISK_1762893442872_enrpqmjjg`
-2. Frontend redirects to `track-click` Edge Function
-3. Edge Function increments clicks in `variant_stats` table
-4. Next campaign run: Thompson Sampling uses updated click data to select best variants
-5. Over time: System learns which subject lines work best for each persona
+1. User clicks email link → `https://zdgvndxdhucbakguvkgw.supabase.co/functions/v1/track-click/{assignment_id}`
+2. track-click Edge Function receives assignment_id
+3. Edge Function looks up persona_id and variant_id from assignments table
+4. Edge Function inserts click event into events table
+5. Edge Function increments alpha (success count) in variant_stats table
+6. Next campaign run: Thompson Sampling uses updated click data to select best variants
+7. Over time: System learns which subject lines work best for each persona
 
 ## Next Steps
 

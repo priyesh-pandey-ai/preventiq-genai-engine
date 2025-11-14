@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Play } from "lucide-react";
 import { analytics } from "@/lib/analytics";
+import { useNavigate } from "react-router-dom";
 
 const HeroSection = () => {
+  const navigate = useNavigate();
+  
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
@@ -41,7 +44,7 @@ const HeroSection = () => {
             size="lg"
             onClick={() => {
               handleCTAClick('hero_start_pilot');
-              scrollToSection("signup");
+              navigate('/login?mode=signup');
             }}
             className="w-full sm:w-auto text-base sm:text-lg px-8 sm:px-10 py-7 bg-gradient-button hover:scale-105 hover:shadow-glow transition-all font-semibold rounded-full"
           >

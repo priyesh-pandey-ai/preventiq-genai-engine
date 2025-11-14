@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getPersonaEmailContent } from '../shared/persona-templates.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -26,7 +27,7 @@ function betaSample(alpha: number, beta: number): number {
 
 // Bandit algorithm: Explore (uniform random) vs Exploit (Thompson Sampling)
 function selectVariant(
-  variants: any[],
+  variants: Array<{id: string; content: string}>,
   stats: { [key: string]: { alpha: number; beta: number } },
   totalClicks: number,
   threshold: number = 50
@@ -66,78 +67,97 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const geminiApiKey = Deno.env.get('GEMINI_API_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     console.log('Starting campaign send process...');
 
-    // Step 1: Get unassigned leads (leads without assignments)
-    const { data: unassignedLeads, error: leadsError } = await supabase
+    // Get optional lead_ids from request body
+    const requestBody = req.headers.get('content-type')?.includes('application/json') 
+      ? await req.json() 
+      : {};
+    const specificLeadIds = requestBody.lead_ids;
+
+    // Step 1: Get leads to process (not emailed in last 24 hours or never emailed)
+    let query = supabase
       .from('leads')
-      .select('id, name, email, city, org_type, lang')
-      .is('is_test', false)
-      .limit(10); // Process max 10 leads per run (with 7s delay = ~70s total)
+      .select('id, name, email, city, org_type, lang, age, persona_id')
+      .is('is_test', false);
+
+    if (specificLeadIds && specificLeadIds.length > 0) {
+      // Process specific leads if provided
+      query = query.in('id', specificLeadIds);
+    } else {
+      // Default: process leads not emailed in 24h
+      query = query
+        .or('last_email_sent_at.is.null,last_email_sent_at.lt.' + new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .limit(10); // Process max 10 leads per run (with 7s delay = ~70s total)
+    }
+
+    const { data: leadsToEmail, error: leadsError } = await query;
 
     if (leadsError) throw leadsError;
 
-    if (!unassignedLeads || unassignedLeads.length === 0) {
-      console.log('No unassigned leads found');
+    if (!leadsToEmail || leadsToEmail.length === 0) {
+      console.log('No leads found to email');
       return new Response(
-        JSON.stringify({ message: 'No leads to process', processed: 0 }),
+        JSON.stringify({ message: 'No leads to process', processed: 0, campaigns: [] }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Filter out leads that already have assignments
-    const leadIds = unassignedLeads.map(l => l.id);
-    const { data: existingAssignments } = await supabase
-      .from('assignments')
-      .select('lead_id')
-      .in('lead_id', leadIds);
-
-    const assignedLeadIds = new Set(existingAssignments?.map(a => a.lead_id) || []);
-    const leadsToProcess = unassignedLeads.filter(lead => !assignedLeadIds.has(lead.id));
-
-    console.log(`Processing ${leadsToProcess.length} leads`);
+    console.log(`Found ${leadsToEmail.length} leads to process`);
 
     const campaignData = [];
 
     // Step 2: Process each lead (with delay to avoid API rate limits)
-    for (let i = 0; i < leadsToProcess.length; i++) {
-      const lead = leadsToProcess[i];
+    for (let i = 0; i < leadsToEmail.length; i++) {
+      const lead = leadsToEmail[i];
       
-      // Add 7-second delay between leads to stay under Gemini's 10 req/min limit
+      // Add 7-second delay between leads to stay under rate limits
       if (i > 0) {
-        console.log(`Waiting 7 seconds before processing lead ${i + 1}/${leadsToProcess.length}...`);
+        console.log(`Waiting 7 seconds before processing lead ${i + 1}/${leadsToEmail.length}...`);
         await new Promise(resolve => setTimeout(resolve, 7000));
       }
       
       try {
-        // Step 2a: Classify lead into persona
-        console.log(`Classifying lead ${lead.id}...`);
+        let archetype = lead.persona_id;
         
-        const classifyResponse = await fetch(`${supabaseUrl}/functions/v1/classify-persona`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            lead_id: lead.id,
-            city: lead.city,
-            org_type: lead.org_type,
-            age: lead.age,
-            lang: lead.lang,
-          }),
-        });
+        // Step 2a: Classify lead into persona if not already classified
+        if (!archetype) {
+          console.log(`Classifying lead ${lead.id}...`);
+          
+          const classifyResponse = await fetch(`${supabaseUrl}/functions/v1/classify-persona`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              lead_id: lead.id,
+              city: lead.city,
+              org_type: lead.org_type,
+              age: lead.age,
+              lang: lead.lang,
+            }),
+          });
 
-        if (!classifyResponse.ok) {
-          console.error(`Classification failed for lead ${lead.id}`);
-          continue;
+          if (!classifyResponse.ok) {
+            console.error(`Classification failed for lead ${lead.id}`);
+            continue;
+          }
+
+          const classifyResult = await classifyResponse.json();
+          archetype = classifyResult.archetype;
+          console.log(`Lead ${lead.id} classified as ${archetype} (${classifyResult.method || 'unknown'})`);
+          
+          // Update lead with persona_id
+          await supabase
+            .from('leads')
+            .update({ persona_id: archetype })
+            .eq('id', lead.id);
+        } else {
+          console.log(`Lead ${lead.id} already has persona ${archetype}`);
         }
-
-        const { archetype } = await classifyResponse.json();
-        console.log(`Lead ${lead.id} classified as ${archetype}`);
 
         // Step 2b: Get or create variants for this persona
         const { data: existingVariants } = await supabase
@@ -168,6 +188,7 @@ Deno.serve(async (req) => {
           if (subjectsResponse.ok) {
             const { subjects } = await subjectsResponse.json();
             
+            const newVariants = [];
             // Store variants in database
             for (const subject of subjects) {
               const variantId = `${archetype}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -185,9 +206,10 @@ Deno.serve(async (req) => {
                 .single();
 
               if (newVariant) {
-                variants.push(newVariant);
+                newVariants.push(newVariant);
               }
             }
+            variants = newVariants;
           }
         }
 
@@ -216,8 +238,45 @@ Deno.serve(async (req) => {
         const selectedVariant = selectVariant(variants, stats, totalClicks);
         console.log(`Selected variant ${selectedVariant.id} for lead ${lead.id}`);
 
-        // Step 2e: Prepare campaign data for n8n/Brevo
-        campaignData.push({
+        // Step 2e: Generate AI-powered email body content
+        console.log(`Generating AI email body for lead ${lead.id}...`);
+        let emailContent;
+        
+        try {
+          const bodyResponse = await fetch(`${supabaseUrl}/functions/v1/generate-email-body`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${supabaseServiceKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              persona_id: archetype,
+              lead_name: lead.name,
+              lang: lead.lang || 'en',
+              subject_line: selectedVariant.content,
+            }),
+          });
+
+          if (bodyResponse.ok) {
+            const bodyData = await bodyResponse.json();
+            if (bodyData.fallback) {
+              console.warn(`AI email generation returned fallback for lead ${lead.id}`);
+            }
+            emailContent = bodyData.email_content;
+            console.log(`AI email content generated for lead ${lead.id}`);
+          } else {
+            // Fallback to static template if AI fails
+            console.warn(`AI email generation failed for lead ${lead.id}, using fallback`);
+            emailContent = getPersonaEmailContent(archetype, lead.lang || 'en', lead.name);
+          }
+        } catch (bodyError) {
+          console.error(`Error generating AI email body for lead ${lead.id}:`, bodyError);
+          // Fallback to static template
+          emailContent = getPersonaEmailContent(archetype, lead.lang || 'en', lead.name);
+        }
+
+        // Step 2f: Prepare campaign data
+        const campaignItem = {
           lead_id: lead.id,
           lead_name: lead.name,
           lead_email: lead.email,
@@ -225,7 +284,100 @@ Deno.serve(async (req) => {
           variant_id: selectedVariant.id,
           subject: selectedVariant.content,
           lang: lead.lang || 'en',
-        });
+          email_content: emailContent,
+          ai_generated: emailContent !== getPersonaEmailContent(archetype, lead.lang || 'en', lead.name),
+        };
+
+        campaignData.push(campaignItem);
+
+        // Step 2g: Create assignment record BEFORE sending email
+        const { data: assignment, error: assignmentError } = await supabase
+          .from('assignments')
+          .insert({
+            lead_id: lead.id,
+            persona_id: archetype,
+            variant_id: selectedVariant.id,
+            status: 'pending',
+          })
+          .select()
+          .single();
+
+        if (assignmentError) {
+          console.error(`Error creating assignment for lead ${lead.id}:`, assignmentError);
+          continue;
+        }
+
+        console.log(`Created assignment ${assignment.id} for lead ${lead.id}`);
+
+        // Step 2h: Send email via Brevo API
+        const brevoApiKey = Deno.env.get('BREVO_API_KEY');
+        if (!brevoApiKey) {
+          console.error('BREVO_API_KEY not set, skipping email send');
+          continue;
+        }
+
+        try {
+          const trackingUrl = `${supabaseUrl}/functions/v1/track-click/${assignment.id}`;
+          
+          const emailBody = {
+            sender: {
+              name: "PreventIQ",
+              email: "p24priyesh@gmail.com"
+            },
+            to: [{
+              email: lead.email,
+              name: lead.name
+            }],
+            subject: selectedVariant.content,
+            htmlContent: `<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;'><div style='background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'><p style='font-size: 16px; color: #333; margin-bottom: 15px;'>${emailContent.greeting || 'Hello there,'}</p><p style='font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 15px;'>${emailContent.body_paragraph_1 || emailContent.intro || 'We have something special for you.'}</p><p style='font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 20px;'>${emailContent.body_paragraph_2 || emailContent.body || ''}</p><div style='text-align: center; margin: 30px 0;'><a href='${trackingUrl}' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>${emailContent.call_to_action || emailContent.cta || 'Learn More'}</a></div><p style='font-size: 14px; color: #777; font-style: italic; margin-top: 20px;'>${emailContent.closing || 'Your health matters to us.'}</p><div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;'><p style='font-size: 14px; color: #999; margin: 5px 0;'>Best regards,</p><p style='font-size: 14px; color: #999; margin: 5px 0; font-weight: 600;'>The PreventIQ Team</p></div></div><div style='text-align: center; margin-top: 20px;'><p style='font-size: 12px; color: #999;'>✨ ${campaignItem.ai_generated ? 'Personalized with AI' : 'Crafted for you'} ✨</p></div></div>`,
+            tags: [`campaign`, `persona_${archetype}`, `variant_${selectedVariant.id}`, campaignItem.ai_generated ? 'ai-generated' : 'template']
+          };
+
+          const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+              'api-key': brevoApiKey,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(emailBody),
+          });
+
+          if (!brevoResponse.ok) {
+            const errorText = await brevoResponse.text();
+            throw new Error(`Brevo API error: ${brevoResponse.status} - ${errorText}`);
+          }
+
+          const brevoResult = await brevoResponse.json();
+          console.log(`Email sent via Brevo for lead ${lead.id}, messageId: ${brevoResult.messageId}`);
+
+          // Step 2i: Update assignment with message_id and status
+          await supabase
+            .from('assignments')
+            .update({
+              message_id: brevoResult.messageId,
+              status: 'sent',
+            })
+            .eq('id', assignment.id);
+
+          // Step 2j: Update last_email_sent_at timestamp
+          await supabase
+            .from('leads')
+            .update({ last_email_sent_at: new Date().toISOString() })
+            .eq('id', lead.id);
+
+          console.log(`Successfully sent email to ${lead.email}`);
+
+        } catch (emailError) {
+          console.error(`Error sending email for lead ${lead.id}:`, emailError);
+          
+          // Update assignment status to failed
+          await supabase
+            .from('assignments')
+            .update({ status: 'failed' })
+            .eq('id', assignment.id);
+
+          throw emailError;
+        }
 
       } catch (error) {
         console.error(`Error processing lead ${lead.id}:`, error);
@@ -247,8 +399,7 @@ Deno.serve(async (req) => {
         message: `Prepared ${campaignData.length} campaigns`,
         campaigns: campaignData,
         stats: {
-          total_leads: unassignedLeads.length,
-          already_assigned: assignedLeadIds.size,
+          total_leads_checked: leadsToEmail.length,
           processed: campaignData.length,
         },
       }),

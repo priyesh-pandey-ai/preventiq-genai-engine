@@ -1,0 +1,6 @@
+name,email,city,org_type,lang,age,is_test,persona_id
+John Doe,john.doe@example.com,New York,Healthcare,en,35,false,
+Jane Smith,jane.smith@example.com,Los Angeles,Technology,en,28,false,
+Raj Kumar,raj.kumar@example.com,Mumbai,Healthcare,hi,42,false,
+Maria Garcia,maria.garcia@example.com,Madrid,Healthcare,en,55,false,
+Ahmed Hassan,ahmed.hassan@example.com,Cairo,Education,en,31,false,
