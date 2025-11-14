@@ -4,14 +4,14 @@ const DemoSection = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl">
         <div className="text-center mb-8">
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Watch How It Works (90 sec)
+            Watch How It Works
           </h2>
         </div>
 
         <div className="relative aspect-video rounded-xl overflow-hidden bg-card border border-border shadow-lg shadow-primary/10">
           <iframe
             className="absolute inset-0 w-full h-full"
-            src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+            src="https://www.youtube.com/embed/hWYKHwzSox4"
             title="PreventIQ Demo Video"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen

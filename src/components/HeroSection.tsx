@@ -60,7 +60,7 @@ const HeroSection = () => {
             className="w-full sm:w-auto text-base sm:text-lg px-8 sm:px-10 py-7 bg-background/80 backdrop-blur-sm border-2 hover:bg-background hover:border-primary transition-all font-semibold rounded-full"
           >
             <Play className="mr-2 h-5 w-5" />
-            Watch 90-sec Demo
+            Watch Intro
           </Button>
         </div>
 
