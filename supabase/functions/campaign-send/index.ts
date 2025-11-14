@@ -282,7 +282,7 @@ Deno.serve(async (req) => {
           lead_email: lead.email,
           persona_id: archetype,
           variant_id: selectedVariant.id,
-          subject: selectedVariant.content,
+          subject: `${lead.name}, ${selectedVariant.content}`,
           lang: lead.lang || 'en',
           email_content: emailContent,
           ai_generated: emailContent !== getPersonaEmailContent(archetype, lead.lang || 'en', lead.name),
@@ -328,7 +328,7 @@ Deno.serve(async (req) => {
               email: lead.email,
               name: lead.name
             }],
-            subject: selectedVariant.content,
+            subject: `${lead.name}, ${selectedVariant.content}`,
             htmlContent: `<div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;'><div style='background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'><p style='font-size: 16px; color: #333; margin-bottom: 15px;'>${emailContent.greeting || 'Hello there,'}</p><p style='font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 15px;'>${emailContent.body_paragraph_1 || emailContent.intro || 'We have something special for you.'}</p><p style='font-size: 15px; color: #555; line-height: 1.6; margin-bottom: 20px;'>${emailContent.body_paragraph_2 || emailContent.body || ''}</p><div style='text-align: center; margin: 30px 0;'><a href='${trackingUrl}' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px 32px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);'>${emailContent.call_to_action || emailContent.cta || 'Learn More'}</a></div><p style='font-size: 14px; color: #777; font-style: italic; margin-top: 20px;'>${emailContent.closing || 'Your health matters to us.'}</p><div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;'><p style='font-size: 14px; color: #999; margin: 5px 0;'>Best regards,</p><p style='font-size: 14px; color: #999; margin: 5px 0; font-weight: 600;'>The PreventIQ Team</p></div></div><div style='text-align: center; margin-top: 20px;'><p style='font-size: 12px; color: #999;'>✨ ${campaignItem.ai_generated ? 'Personalized with AI' : 'Crafted for you'} ✨</p></div></div>`,
             tags: [`campaign`, `persona_${archetype}`, `variant_${selectedVariant.id}`, campaignItem.ai_generated ? 'ai-generated' : 'template']
           };
