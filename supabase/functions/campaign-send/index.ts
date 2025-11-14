@@ -246,7 +246,7 @@ Deno.serve(async (req) => {
           const bodyResponse = await fetch(`${supabaseUrl}/functions/v1/generate-email-body`, {
             method: 'POST',
             headers: {
-              'Authorization': `******
+              'Authorization': `Bearer ${supabaseServiceKey}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
